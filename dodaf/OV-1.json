@@ -1,0 +1,27 @@
+{
+  "viewId": "open-airplane.OV-1",
+  "viewType": "OV-1",
+  "title": "High-Level Operational Concept Graphic",
+  "did": "did:web:open-airplane.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "operationalNodes": [
+      { "id": "operator",   "label": "Airline operator (DID)" },
+      { "id": "airport",    "label": "Airport (DID)" },
+      { "id": "airplane",   "label": "open-airplane.etzhayyim.com (Worker)" },
+      { "id": "store",      "label": "D1 (airports/aircraft/flights/status/incidents SSoT)" },
+      { "id": "pds",        "label": "atproto.etzhayyim.com (PDS, public audit)" },
+      { "id": "caa",        "label": "Civil Aviation Authority (DID)" }
+    ],
+    "operationalFlows": [
+      { "from": "operator", "to": "airplane", "label": "XRPC (registerAircraft / scheduleFlight / recordFlightStatus / reportIncident)" },
+      { "from": "airport",  "to": "airplane", "label": "XRPC (defineAirport)" },
+      { "from": "airplane", "to": "store",    "label": "INSERT airports / aircraft / flights / status / incidents" },
+      { "from": "airplane", "to": "pds",      "label": "app.bsky.feed.post (serious-incident OR accident)" },
+      { "from": "pds",      "to": "caa",      "label": "follow firehose" }
+    ],
+    "narrative": "Operators register fleet and schedule flights against airports. OOOI status updates feed the operations log. Field reports go through severity DMN; serious incidents and accidents auto-publish a public audit entry visible to the civil aviation authority."
+  },
+  "refs": { "viewIds": ["open-airplane.SV-1", "open-airplane.OV-5b"] },
+  "version": 1
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://etzhayyim.com/schemas/camunda-form/v1",
+  "formKey": "openAirplane.scheduleFlight.v1",
+  "name": "Schedule Flight",
+  "version": 1,
+  "lexiconRef": "com.etzhayyim.apps.openAirplane.scheduleFlight",
+  "components": [
+    { "key": "operatorDid", "label": "Operator DID", "type": "textfield",
+      "validate": { "required": true, "pattern": "^did:[a-z]+:.+" } },
+    { "key": "aircraftDid", "label": "Aircraft DID", "type": "textfield",
+      "validate": { "required": true, "pattern": "^did:[a-z]+:.+" } },
+    { "key": "flightNumber", "label": "Flight number (e.g. JL123)", "type": "textfield",
+      "validate": { "required": true, "pattern": "^[A-Z0-9]{2,3}\\d{1,4}[A-Z]?$" } },
+    { "key": "originAirportDid", "label": "Origin airport DID", "type": "textfield",
+      "validate": { "required": true, "pattern": "^did:[a-z]+:.+" } },
+    { "key": "destAirportDid", "label": "Destination airport DID", "type": "textfield",
+      "validate": { "required": true, "pattern": "^did:[a-z]+:.+" } },
+    { "key": "serviceDate", "label": "Service date (YYYY-MM-DD)", "type": "textfield",
+      "validate": { "required": true, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" } },
+    { "key": "scheduledDeparture", "label": "Scheduled departure (ISO 8601, UTC)", "type": "textfield",
+      "validate": { "required": true } },
+    { "key": "scheduledArrival", "label": "Scheduled arrival (ISO 8601, UTC)", "type": "textfield",
+      "validate": { "required": true } }
+  ],
+  "variableMappings": {
+    "operatorDid": "operatorDid", "aircraftDid": "aircraftDid", "flightNumber": "flightNumber",
+    "originAirportDid": "originAirportDid", "destAirportDid": "destAirportDid",
+    "serviceDate": "serviceDate", "scheduledDeparture": "scheduledDeparture", "scheduledArrival": "scheduledArrival"
+  }
+}

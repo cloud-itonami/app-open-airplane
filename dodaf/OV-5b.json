@@ -1,0 +1,43 @@
+{
+  "viewId": "open-airplane.OV-5b",
+  "viewType": "OV-5b",
+  "title": "Operational Activity Model",
+  "did": "did:web:open-airplane.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "activities": [
+      { "id": "act.defineAirport", "name": "Define Airport", "type": "xrpc",
+        "realisedBy": [{ "xrpc": "com.etzhayyim.apps.openAirplane.defineAirport" }] },
+      { "id": "act.registerAircraft", "name": "Register Aircraft", "type": "xrpc",
+        "realisedBy": [{ "xrpc": "com.etzhayyim.apps.openAirplane.registerAircraft" }] },
+      { "id": "act.scheduleFlight", "name": "Schedule Flight", "type": "bpmn",
+        "bpmnProcessKey": "scheduleFlight", "source": "bpmn/schedule-flight.bpmn",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openAirplane.scheduleFlight" },
+          { "form": "openAirplane.scheduleFlight.v1" }
+        ] },
+      { "id": "act.recordFlightStatus", "name": "Record OOOI / Status", "type": "xrpc",
+        "realisedBy": [{ "xrpc": "com.etzhayyim.apps.openAirplane.recordFlightStatus" }] },
+      { "id": "act.reportIncident", "name": "Report Incident", "type": "bpmn",
+        "bpmnProcessKey": "reportAviationIncident", "source": "bpmn/report-incident.bpmn",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openAirplane.reportIncident" },
+          { "form": "openAirplane.reportIncident.v1" },
+          { "dmn":  "openAirplane.incidentSeverity" }
+        ] },
+      { "id": "act.queryNetwork", "name": "Query Airports / Flights / Incidents", "type": "xrpc",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openAirplane.listAirports" },
+          { "xrpc": "com.etzhayyim.apps.openAirplane.listFlights" },
+          { "xrpc": "com.etzhayyim.apps.openAirplane.listIncidents" }
+        ] }
+    ]
+  },
+  "refs": {
+    "bpmnProcessKeys": ["scheduleFlight", "reportAviationIncident"],
+    "dmnDecisionKeys": ["openAirplane.incidentSeverity"],
+    "formKeys": ["openAirplane.scheduleFlight.v1", "openAirplane.reportIncident.v1"],
+    "viewIds": ["open-airplane.OV-6a", "open-airplane.SV-1"]
+  },
+  "version": 1
+}

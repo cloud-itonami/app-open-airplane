@@ -1,0 +1,37 @@
+{
+  "viewId": "open-airplane.CV-2",
+  "viewType": "CV-2",
+  "title": "Capability Taxonomy",
+  "did": "did:web:open-airplane.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "capabilities": [
+      {
+        "id": "cap.directory", "name": "Directory",
+        "children": [
+          { "id": "cap.airportDef",  "name": "Define airport",   "realisedBy": "com.etzhayyim.apps.openAirplane.defineAirport" },
+          { "id": "cap.airportList", "name": "List airports",    "realisedBy": "com.etzhayyim.apps.openAirplane.listAirports" },
+          { "id": "cap.aircraftReg", "name": "Register aircraft","realisedBy": "com.etzhayyim.apps.openAirplane.registerAircraft" }
+        ]
+      },
+      {
+        "id": "cap.operations", "name": "Flight operations",
+        "children": [
+          { "id": "cap.flightSchedule", "name": "Schedule flight",  "realisedBy": "com.etzhayyim.apps.openAirplane.scheduleFlight" },
+          { "id": "cap.flightStatus",   "name": "OOOI / status",    "realisedBy": "com.etzhayyim.apps.openAirplane.recordFlightStatus" },
+          { "id": "cap.flightList",     "name": "List flights",     "realisedBy": "com.etzhayyim.apps.openAirplane.listFlights" }
+        ]
+      },
+      {
+        "id": "cap.safety", "name": "Safety / incidents",
+        "children": [
+          { "id": "cap.incidentReport",   "name": "Report incident",      "realisedBy": "com.etzhayyim.apps.openAirplane.reportIncident" },
+          { "id": "cap.incidentSeverity", "name": "Severity decisioning", "realisedBy": "openAirplane.incidentSeverity (DMN)" },
+          { "id": "cap.incidentList",     "name": "List incidents",       "realisedBy": "com.etzhayyim.apps.openAirplane.listIncidents" }
+        ]
+      }
+    ]
+  },
+  "refs": { "viewIds": ["open-airplane.OV-5b", "open-airplane.SV-1"] },
+  "version": 1
+}

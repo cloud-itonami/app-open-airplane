@@ -1,0 +1,32 @@
+{
+  "viewId": "open-airplane.AV-1",
+  "viewType": "AV-1",
+  "title": "Overview and Summary Information",
+  "did": "did:web:open-airplane.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "purpose": "Provide a DID-addressed aviation operations service (airport + aircraft + flight + incident) as an auditable, open-source reference implementation.",
+    "scope": {
+      "in": ["airport directory (ICAO/IATA + runways)", "aircraft registry (tail no. + ICAO 24-bit)", "flight scheduling + OOOI status", "incident reporting + ICAO Annex 13 severity"],
+      "out": ["realtime ADS-B / ATC clearances", "MEL / maintenance", "crew rostering / FTL", "NDC / ARC settlement"]
+    },
+    "architectureDescriptionContext": {
+      "mission": "Provide tamper-evident, DID-native aviation operations primitives open to any AT Protocol client.",
+      "stakeholders": ["operators / airlines (DIDs)", "airports", "civil aviation authority", "passengers"],
+      "environment": "Cloudflare Workers + D1",
+      "standards": ["AT Protocol XRPC", "DoDAF v2.02", "BPMN 2.0", "DMN 1.3", "Camunda Forms", "ICAO Doc 4444 (ICAO airport codes)", "IATA airport+airline codes", "ICAO Annex 13 (occurrence categories)", "OOOI (Off/Out/On/In)"]
+    },
+    "toolsAndMethods": [
+      "XRPC Lexicons (com.etzhayyim.apps.openAirplane.*)",
+      "BPMN 2.0 (scheduleFlight, reportAviationIncident)",
+      "DMN 1.3 (incidentSeverity)",
+      "Camunda Forms"
+    ],
+    "findings": "OOOI checkpoints + status state machine sufficient for post-hoc operations record. Severity DMN routes accidents/serious-incidents to authority audit feed.",
+    "recommendations": "Add ADS-B realtime subscription, Annex 13 occurrence category taxonomy, predictive delay model integration."
+  },
+  "refs": {
+    "viewIds": ["open-airplane.OV-1", "open-airplane.OV-5b", "open-airplane.OV-6a", "open-airplane.CV-2", "open-airplane.SV-1"]
+  },
+  "version": 1
+}

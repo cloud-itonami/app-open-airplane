@@ -1,0 +1,53 @@
+{
+  "viewId": "open-airplane.OV-6a",
+  "viewType": "OV-6a",
+  "title": "Operational Rules Model",
+  "did": "did:web:open-airplane.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "businessRules": [
+      {
+        "id": "rule.icaoUnique",
+        "statement": "airport.icaoCode MUST match ^[A-Z]{4}$ and be unique. iataCode optional but unique when present.",
+        "kind": "constraint",
+        "enforcedBy": "worker/src/app.ts:defineAirport() validation + UNIQUE(icao_code)"
+      },
+      {
+        "id": "rule.aircraftIcao24",
+        "statement": "Aircraft icao24 MUST match ^[0-9A-F]{6}$ (24-bit hex). tailNumber free-form but unique per registry.",
+        "kind": "constraint",
+        "enforcedBy": "worker/src/app.ts:registerAircraft() validation + UNIQUE(icao24)"
+      },
+      {
+        "id": "rule.flightOriginDest",
+        "statement": "scheduleFlight: originAirportDid ≠ destAirportDid. scheduledDeparture < scheduledArrival.",
+        "kind": "constraint",
+        "enforcedBy": "worker/src/app.ts:scheduleFlight() validation"
+      },
+      {
+        "id": "rule.oooiOrder",
+        "statement": "OOOI events MUST be in order: scheduled → off-block → airborne → landed → in-block → completed. Out-of-order events return Conflict 409.",
+        "kind": "invariant",
+        "enforcedBy": "worker/src/app.ts:recordFlightStatus() state machine"
+      },
+      {
+        "id": "rule.incidentSeverity",
+        "statement": "fatalities ≥ 1 OR hull-loss → accident; seriousInjuries ≥ 1 OR atc-incident → serious-incident; else incident. accident|serious-incident → authority audit post.",
+        "kind": "decisionTable",
+        "dmnDecisionKey": "openAirplane.incidentSeverity",
+        "source": "dmn/incident-severity.dmn"
+      },
+      {
+        "id": "rule.appendOnlyIncident",
+        "statement": "Incident records are append-only. Updates create a new incident with supersedes pointing at the original.",
+        "kind": "invariant",
+        "enforcedBy": "no UPDATE on incidents core fields"
+      }
+    ]
+  },
+  "refs": {
+    "dmnDecisionKeys": ["openAirplane.incidentSeverity"],
+    "viewIds": ["open-airplane.OV-5b"]
+  },
+  "version": 1
+}

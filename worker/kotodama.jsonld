@@ -1,0 +1,55 @@
+{
+  "@context": "https://etzhayyim.com/ns/kotodama/v1",
+  "@id": "did:web:open-airplane.etzhayyim.com",
+  "name": "open-airplane",
+  "handle": "open-airplane.etzhayyim.com",
+  "performerType": "service",
+  "runtimeType": "worker",
+  "project": "open-airplane",
+  "convoSystemPrompt": "You are the ETZHAYYIM Open Airplane agent. You manage aviation operations: airport directory, aircraft registry, flight scheduling with OOOI status, and incident reporting. Apply ICAO Annex 13 occurrence categories, enforce OOOI ordering, and emit authority audit posts on accidents and serious incidents.",
+  "governance": {
+    "raci": "responsible",
+    "classification": "operations",
+    "complianceFrameworks": ["icao-annex-13", "icao-doc-4444", "iata-codes", "etzhayyim-ops-policy"]
+  },
+  "profile": {
+    "displayName": "ETZHAYYIM Open Airplane",
+    "description": "Open-source aviation operations reference implementation — airport + aircraft + flight + OOOI status + ICAO Annex 13 incident severity.",
+    "avatar": "✈️",
+    "category": "transport",
+    "isBot": true,
+    "operator": "etzhayyim.com",
+    "agentType": "autonomous",
+    "capabilities": [
+      "airport-directory",
+      "aircraft-registry",
+      "flight-schedule",
+      "oooi-status",
+      "incident-report",
+      "icao-annex13-severity"
+    ]
+  },
+  "triggers": {
+    "subscribeRepos": {
+      "collections": [
+        "app.bsky.feed.post",
+        "com.etzhayyim.apps.openAirplane.airport",
+        "com.etzhayyim.apps.openAirplane.aircraft",
+        "com.etzhayyim.apps.openAirplane.flight",
+        "com.etzhayyim.apps.openAirplane.flightStatus",
+        "com.etzhayyim.apps.openAirplane.incident"
+      ]
+    }
+  },
+  "space": {
+    "name": "ETZHAYYIM Open Airplane",
+    "description": "Open-source aviation operations reference implementation",
+    "joinRule": "public",
+    "historyVisibility": "world-readable",
+    "convos": [
+      { "name": "aviation-ops", "kind": "public",
+        "description": "Public operational events (airport additions, schedule publications, accidents/serious incidents)",
+        "default": true }
+    ]
+  }
+}

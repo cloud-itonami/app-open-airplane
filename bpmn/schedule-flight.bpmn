@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="open-airplane-schedule-flight"
+                  targetNamespace="https://etzhayyim.com/bpmn/open-airplane">
+  <bpmn:process id="scheduleFlight" name="Schedule Flight" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Init" name="Flight planning request"/>
+    <bpmn:sequenceFlow id="f1" sourceRef="StartEvent_Init" targetRef="Task_CollectFlightForm"/>
+    <bpmn:userTask id="Task_CollectFlightForm" name="Collect flight form"
+                   camunda:formKey="openAirplane.scheduleFlight.v1"/>
+    <bpmn:sequenceFlow id="f2" sourceRef="Task_CollectFlightForm" targetRef="Task_Persist"/>
+    <bpmn:serviceTask id="Task_Persist" name="com.etzhayyim.apps.openAirplane.scheduleFlight"
+                      camunda:topic="com.etzhayyim.apps.openAirplane.scheduleFlight"/>
+    <bpmn:sequenceFlow id="f3" sourceRef="Task_Persist" targetRef="EndEvent_Scheduled"/>
+    <bpmn:endEvent id="EndEvent_Scheduled" name="Flight scheduled"/>
+  </bpmn:process>
+</bpmn:definitions>

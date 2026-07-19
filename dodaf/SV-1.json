@@ -1,0 +1,38 @@
+{
+  "viewId": "open-airplane.SV-1",
+  "viewType": "SV-1",
+  "title": "Systems Interface Description",
+  "did": "did:web:open-airplane.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "systems": [
+      {
+        "id": "sys.worker", "name": "open-airplane Worker",
+        "platform": "Cloudflare Workers", "entrypoint": "worker/src/app.ts",
+        "interfaces": [
+          { "id": "if.xrpc.defineAirport",       "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openAirplane.defineAirport" },
+          { "id": "if.xrpc.listAirports",        "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openAirplane.listAirports" },
+          { "id": "if.xrpc.registerAircraft",    "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openAirplane.registerAircraft" },
+          { "id": "if.xrpc.scheduleFlight",      "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openAirplane.scheduleFlight" },
+          { "id": "if.xrpc.recordFlightStatus",  "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openAirplane.recordFlightStatus" },
+          { "id": "if.xrpc.listFlights",         "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openAirplane.listFlights" },
+          { "id": "if.xrpc.reportIncident",      "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openAirplane.reportIncident" },
+          { "id": "if.xrpc.listIncidents",       "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openAirplane.listIncidents" }
+        ]
+      },
+      { "id": "sys.d1", "name": "Cloudflare D1 (SQLite)", "platform": "D1",
+        "tables": ["airports", "aircraft", "flights", "flight_status", "incidents"] },
+      { "id": "sys.pds",  "name": "atproto.etzhayyim.com PDS", "platform": "Service binding",
+        "interfaces": [{ "id": "if.pds.post", "kind": "wRPC", "method": "app.bsky.feed.post" }] },
+      { "id": "sys.auth", "name": "auth.etzhayyim.com", "platform": "Service binding",
+        "interfaces": [{ "id": "if.auth.resolveCaller", "kind": "wRPC", "method": "resolveCallerDid" }] }
+    ],
+    "connections": [
+      { "from": "sys.worker", "to": "sys.d1",   "protocol": "D1 binding" },
+      { "from": "sys.worker", "to": "sys.pds",  "protocol": "Service binding (wRPC)" },
+      { "from": "sys.worker", "to": "sys.auth", "protocol": "Service binding (wRPC)" }
+    ]
+  },
+  "refs": { "viewIds": ["open-airplane.OV-1", "open-airplane.CV-2"] },
+  "version": 1
+}

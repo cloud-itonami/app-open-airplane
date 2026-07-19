@@ -1,0 +1,42 @@
+{
+  "$schema": "https://etzhayyim.com/schemas/camunda-form/v1",
+  "formKey": "openAirplane.reportIncident.v1",
+  "name": "Report Aviation Incident",
+  "version": 1,
+  "lexiconRef": "com.etzhayyim.apps.openAirplane.reportIncident",
+  "components": [
+    { "key": "aircraftDid", "label": "Aircraft DID", "type": "textfield",
+      "validate": { "required": true, "pattern": "^did:[a-z]+:.+" } },
+    { "key": "flightDid", "label": "Flight DID (optional)", "type": "textfield",
+      "validate": { "pattern": "^did:[a-z]+:.+" } },
+    { "key": "occurredAt", "label": "Occurred at (ISO 8601)", "type": "textfield",
+      "validate": { "required": true } },
+    { "key": "phase", "label": "Phase", "type": "select",
+      "validate": { "required": true },
+      "values": [
+        { "label": "Pre-flight",  "value": "pre-flight" },
+        { "label": "Taxi out",    "value": "taxi-out" },
+        { "label": "Take-off",    "value": "take-off" },
+        { "label": "Climb",       "value": "climb" },
+        { "label": "Cruise",      "value": "cruise" },
+        { "label": "Descent",     "value": "descent" },
+        { "label": "Approach",    "value": "approach" },
+        { "label": "Landing",     "value": "landing" },
+        { "label": "Taxi in",     "value": "taxi-in" },
+        { "label": "Post-flight", "value": "post-flight" }
+      ] },
+    { "key": "fatalities", "label": "Fatalities (count)", "type": "number",
+      "validate": { "required": true, "min": 0 }, "defaultValue": 0 },
+    { "key": "seriousInjuries", "label": "Serious injuries (count)", "type": "number",
+      "validate": { "required": true, "min": 0 }, "defaultValue": 0 },
+    { "key": "hullLoss", "label": "Hull loss?", "type": "checkbox", "defaultValue": false },
+    { "key": "atcIncident", "label": "ATC incident (separation/runway-incursion)?", "type": "checkbox", "defaultValue": false },
+    { "key": "description", "label": "Description", "type": "textarea",
+      "validate": { "maxLength": 4096 } }
+  ],
+  "variableMappings": {
+    "aircraftDid": "aircraftDid", "flightDid": "flightDid", "occurredAt": "occurredAt",
+    "phase": "phase", "fatalities": "fatalities", "seriousInjuries": "seriousInjuries",
+    "hullLoss": "hullLoss", "atcIncident": "atcIncident", "description": "description"
+  }
+}
