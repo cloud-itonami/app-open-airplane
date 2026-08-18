@@ -1,253 +1,251 @@
 # app-open-airplane
 
 **この repo は `open-airplane.etzhayyim.com` の edge appview である。** 空港・機体・
-フライト・安全インシデントの運用そのものは、**配備されている物の中には無い** ——
-配備されるのは XRPC 要求を MCP router へ中継する SvelteKit worker 1 本と、その配備設定である。
+フライト・安全インシデントの運用そのものは、**deploy される物の中には無い** ——
+deploy されるのは XRPC 要求を MCP router へ中継する Worker 1 本と、その配備設定である。
 
-`CLAUDE.md` は 8 つの NSID・D1 の 5 テーブル・OOOI 状態機械・ICAO Annex 13 の重大度 DMN を
-記述している。**それを実装したコードはこの repo に実在する**（`worker/src/app.ts`、29.9 KB）。
-問題は在るか無いかではなく、**それが配備される成果物に 1 バイトも入らない**ことである。
-CLAUDE.md を読んでここに来た読み手が最初に必要とするのはこの事実なので、名乗りの直後に置く。
+**2026-08-19 に appview を TypeScript/Svelte から ClojureScript へ移行した**
+（`docs/adr/0001`）。数字はすべて `scripts/verify-docs-claims.cljs` が tree から
+再計算して検査する（23 claim）。
 
 | | |
 |---|---|
 | Worker 名 | `etzhayyim-open-airplane` |
-| 宣言 route | `open-airplane.etzhayyim.com/*`（**NXDOMAIN —— 下記欠陥 D**） |
-| 宣言 DID | `did:web:open-airplane.etzhayyim.com`（**未解決 —— 同 D**） |
-| 実行形態 | SvelteKit + `@sveltejs/adapter-cloudflare` → Cloudflare Worker |
-| 上流 | `https://mcp.etzhayyim.com/xrpc/com.etzhayyim.mcp.message`（**NXDOMAIN —— 欠陥 C**） |
-| 実装の数 | **3 つ**（下記 §1）。配備されるのは 1 つ |
-| 規模 | 34 ファイル / 89,053 バイト |
+| 宣言 route | `open-airplane.etzhayyim.com/*`（**NXDOMAIN** —— 下記「呼び先」） |
+| 宣言 DID | `did:web:open-airplane.etzhayyim.com`（未解決、同上） |
+| 実行形態 | **ClojureScript → shadow-cljs `:target :esm` → Cloudflare Worker** |
+| 上流 | `https://mcp.etzhayyim.com/xrpc/com.etzhayyim.mcp.message`（**NXDOMAIN**） |
+| 規模 | 36 ファイル |
 
-手順は `docs/operator-quickstart.md`。以下は 2026-08-17 (UTC) に**実際に測って**分かった
-現在地であり、推測は含まない。測り方は各項に書いてある。
+手順は `docs/operator-quickstart.md`。以下は 2026-08-19 (UTC) に**実際に測って**
+分かった現在地であり、推測は含まない。測り方は各項に書いてある。
 
 ---
 
-## 1. この repo には「open-airplane」が 3 つ在る
+## deploy されるものは、いま読んでいるソースである
 
-同じ名前の実装が 3 つあり、**substrate も NSID の集合も互いに違う**。どれを読むかで
-得られる理解が変わるので、最初に地図を置く。
-
-| # | 場所 | 実体 | substrate | 配備されるか |
-|---|---|---|---|---|
-| 1 | `worker/src/app.ts`（29.9 KB / 3 ファイル） | 8 NSID の完全実装、D1 の 5 テーブル DDL、OOOI 状態機械、DMN 重大度 | **D1** | **されない**（§2） |
-| 2 | `worker/svelte/src/routes/xrpc/[...path]/+server.ts`（2.8 KB） | MCP router への無検査中継 | 無し | **これだけ** |
-| 3 | `kotoba/src/`（18.0 KB / 4 ファイル） | 12 関数、vitest 7 件が緑 | **AT PDS** | されない（§5） |
-
-`CLAUDE.md` の Architecture 節は 1 番だけを記述しており、2 番と 3 番には触れていない。
-
-## 2. 読み手が最初に踏む地雷 —— 開くファイルと、動くファイルが違う
-
-`worker/src/` の下の `app.ts` は、名前も冒頭コメント（`aviation operations + airport
-network`、8 NSID の一覧）も、この repo の入口であるように読める。**動いていない。**
-
-配備されるのは `worker/wrangler.jsonc` の `main` が指す先である:
-
-```jsonc
-"main": "svelte/.svelte-kit/cloudflare/_worker.js"   // ← SvelteKit のビルド成果物
+```
+src/open_airplane/route.cljc    判断（どの handler が答えるか）  ← 純 .cljc、テスト対象
+src/open_airplane/view.cljc     ページ（jp-go-dds の hiccup）    ← 純 .cljc、テスト対象
+src/open_airplane/worker.cljs   Request/Response に触る唯一の層
+        ↓ shadow-cljs :target :esm
+dist/worker.js                  ← worker/wrangler.jsonc の "main" が指すもの
 ```
 
-**clean-room で build して、成果物を検索して確認した**（`.svelte-kit/` を消してから
-`npm ci` 相当 → `npm run build`。手順は quickstart §2）:
+移行前は `main` が `svelte/.svelte-kit/cloudflare/_worker.js` を指していた ——
+**tree に存在しないビルド出力**である（`git ls-files | grep svelte-kit` は 0 件）。
+そして読み手が開く `worker/src/app.ts`（23,512 バイト、8 NSID の完全実装に読める）は
+**どの bundle にも入っていなかった**。いまは `main` が指す bundle が上のソースから
+コンパイルされたものなので、その形は構造的に起こり得ない。
+`scripts/verify-docs-claims.cljs` が **shadow の出力先と wrangler の `main` と
+export の ns 名の 3 つが噛み合っていること**を検査し、噛み合わなくなれば落ちる。
 
-| build 出力 `.svelte-kit/` 全体を検索した語 | 由来 | ヒット数 |
+判断を `.cljc` に置いてあるのは、ブラウザもビルドも無しにテストするためであり、
+ingress capability が qualify した時に **最初に `.kotoba` へ移る部分**だからで
+ある（入口を当面 cljs に置くのは ADR-2606290000 の判断）。
+
+## 公開ルート
+
+| METHOD | PATH | 何をするか |
 |---|---|---|
-| `AIRPLANE_DB` | app.ts の D1 binding 名 | **0** |
-| `defineAirport` | app.ts の NSID handler | **0** |
-| `open-airplane.AV-1` | app.ts が import する DoDAF view | **0** |
-| `mcp.etzhayyim.com` | 中継先（+server.ts） | 1 |
+| GET | `/` | この appview の説明ページ |
+| GET | `/health` | 生存確認（**移行で追加。移植ではない** —— 下記） |
+| POST | `/xrpc/:nsid` | XRPC を MCP router へ中継する |
+| OPTIONS | `/xrpc/*` | CORS preflight |
 
-`worker/src/app.ts` はどのビルド出力にも入らない。**dead code である。**
-`worker/src/defence-handlers.ts`（4.7 KB）と `worker/src/dodaf-bootstrap.ts`（1.7 KB）も同様。
+**この表の出所は `open-airplane.route/routes` で、ページもそこから描く。** 移行前の
+ページ（`worker/svelte/src/routes/+page.svelte`）は
 
-### 2 つのファイルは同じことをしていない
-
-これが問題なのは、片方が使われていないからだけではない。**両者の振る舞いが違う**ので、
-`src/app.ts` を読んで得た理解は本番に対して誤りになる。`wrangler dev --local` を起動して
-実測した差:
-
-| 要求 | `src/app.ts`（読まれる／動かない） | 配備される handler（**実測**） |
-|---|---|---|
-| `GET /health` | JSON 200 を返す実装が在る | **404** |
-| `GET /healthz` `/readyz` | （`/health` と `/_worker/health` のみ実装） | **404** |
-| `GET /_app/meta` | 実装が在る（DoDAF bootstrap を起動する） | **404** |
-| `GET /dodaf` `/dodaf/<id>` | 6 つの DoDAF view を配る | **404** |
-| `GET /forms` `/forms/<key>` | 2 つの form 定義を配る | **404** |
-| `GET /xrpc/<nsid>` | query 3 種を受理（`listAirports` 等） | **405** `GET method not allowed` |
-| `/xrpc/*` 以外 | `only /xrpc/* is served` (404) | SvelteKit の 404 ページ |
-| namespace 外の NSID | `unknown query/procedure NSID` (404) | **中継する**（下記） |
-
-namespace 検査が無いことの実測 —— 無関係な NSID が、自分の NSID と**同じ応答**になる:
-
-```
-POST /xrpc/com.etzhayyim.apps.openAirplane.listAirports        → 500 {"message":"Internal Error"}
-POST /xrpc/com.etzhayyim.apps.openAirplane.thisMethodDoesNotExist → 500 {"message":"Internal Error"}   ← 同一
-POST /xrpc/com.example.totallyUnrelated.doAnything             → 500 {"message":"Internal Error"}   ← 同一
+```js
+"routeCount": 0, "routes": [], "vars": []
 ```
 
-`src/app.ts` なら後 2 者は 404 だった。配備側は任意の tool 名を MCP router へ素通しする。
-**この差が設計判断なのか移行の副産物なのかは、この repo からは判定できない。**
+を literal で持っており、隣の `worker/wrangler.jsonc` が **route 1・var 4** を宣言して
+いることに気づけなかった。いまは route 表を渡す側が持ち、ページは描くだけなので、
+両者がずれる余地が無い。
 
-配備される route は 2 本しか無い（`wrangler deploy --dry-run` で確認）: `/` と `/xrpc/[...path]`。
-bindings は `ASSETS` と 4 つの環境変数だけ（§3）。Total Upload 374.40 KiB / gzip 86.68 KiB。
+### 中継は nsid を検査しない（移行前と同じ）
 
-## 3. 測って見つけた欠陥（未修正 —— この反復では docs だけを触った）
+移行前の deploy 側は `com.example.totallyUnrelated.doAnything` を自分の NSID と
+同じに扱っていた。`worker/src/app.ts` なら 404 だったが、**それは deploy されて
+いない**。検査を足すのは移行ではなく方針変更なので、していない。多段パス
+（`/xrpc/a/b`）も同じ理由で、SvelteKit の rest parameter `[...path]` と同じく
+**転送する**（空文字だけが 400）。
 
-**A. `/health` が無い。** 上表のとおり 404。`src/app.ts` は `/health` `/_worker/health`
-`/_app/meta` を実装しているが、配備されないので存在しない。監視をこれらの URL に
-向けている経路があれば、それは常に落ちていると報告する。
+### `/health` は追加であって移植ではない
 
-**B. 3 つの `/xrpc/*` すべてが 500 を返す。** ローカル実測 3/3。原因は C。
-`+server.ts` は上流 fetch を try/catch していないので、上流に到達できない場合の応答が
-SvelteKit の `{"message":"Internal Error"}` になり、**どの層が失敗したかが応答から読めない。**
+移行前 `/health` は **404** だった（実測。移行前 README の欠陥 A）。移行で足した。
+deploy された面が答えているかを外から確かめる経路が 1 本も無いのは deploy 自体を
+検査不能にするからで、sibling appview は全て持っている。**『deploy された振る舞い
+の移植』の唯一の例外なので、隠さずここに書く。**
 
-**C. 唯一の上流 `mcp.etzhayyim.com` が公開 DNS に存在しない。** ローカルの resolver に
-依存しないよう `1.1.1.1` に直接引いて確認した:
+`x-etzhayyim-bff` ヘッダの値も `sveltekit-edge-bff` → `cljs-worker` に変えた
+（上流に自分が何であるかを名乗るヘッダなので、SvelteKit を名乗り続けるのは嘘になる）。
 
-```
-dig mcp.etzhayyim.com @1.1.1.1          → status: NXDOMAIN
-dig etzhayyim.com     @1.1.1.1          → 172.67.179.128   （apex は在る。NS は Cloudflare）
-```
+## いま在るもの — 36 ファイル
 
-`AGENTGATEWAY_MCP_ROUTER_URL` を上書きしない限り、この worker は**構造的に何も中継できない**。
-配備しても B の 500 がそのまま本番の応答になる。
+| 面 | ファイル |
+|---|---|
+| 判断・描画・edge | `src/open_airplane/{route.cljc, view.cljc, worker.cljs}` |
+| テスト | `test/open_airplane/route_test.cljc`（5 tests / 27 assertions） |
+| ビルド | `deps.edn` / `shadow-cljs.edn` / `.gitignore` |
+| Worker 設定 | `worker/wrangler.jsonc` |
+| actor 記述子 | `worker/kotodama.jsonld` |
+| 検査 | `scripts/{smoke-worker.cljs, verify-docs-claims.cljs}` |
+| モデル（継承） | `bpmn/`(2) `dmn/`(1) `dodaf/`(6) `forms/`(2) |
+| **別実装（継承・移行対象外）** | **`kotoba/`(8)** —— 下記 |
+| 設計 | `CLAUDE.md` |
+| 由来・識別 | `README.edn` / `migration.edn` |
+| 文書 | `README.md` / `docs/operator-quickstart.md` / `docs/adr/0001-*.edn` |
 
-**D. 宣言 route と PRIMARY_DID のホストも NXDOMAIN。** 同じく `@1.1.1.1` で確認:
+**appview の TypeScript は 0 本、正本言語（`.cljs`/`.cljc`）が 4 本。** 移行前は
+**5 対 0** だった（`worker/src/` の 3 本 + `worker/svelte/` の 2 本。`kotoba/` の 6 本は
+別勘定）。この 2 つは検証器の claim なので、TS が戻れば落ちる —— 撤去した
+10 パスに戻る場合（`removed-by-migration-absent`）も、別名で入る場合
+（`appview-ts-files`）も、別々の claim が捕まえる。
 
-```
-dig open-airplane.etzhayyim.com @1.1.1.1 → status: NXDOMAIN
-```
+## `kotoba/` は移行の対象ではない —— 消していない
 
-したがって `wrangler.jsonc` の `routes[0].pattern`（`open-airplane.etzhayyim.com/*`）は
-到達不能で、`did:web:open-airplane.etzhayyim.com` は解決できない（`did:web` は
-`https://<host>/.well-known/did.json` を要求するが、そのホストが引けない）。
-**この repo が名乗る identity は、今日の公開 DNS の上には無い。**
+`kotoba/`（**8 ファイル / 23,326 バイト**、うち `.ts` が 6 本）は `@etzhayyim/sdk` を
+使う **AT PDS substrate の TypeScript ドメインライブラリ**で、空港・機体・フライトを
+AT レコードとして持つ。実測: `grep -rn kotoba worker/` は **0 件** —— `worker/` からも
+`wrangler.jsonc` からも参照されていない。
 
-**E. `wrangler.jsonc` に D1 binding が無い。** `d1_databases` の出現数は **0**。
-`--dry-run` が列挙した binding は `ASSETS` + `APP_HANDLE` / `PRIMARY_DID` /
-`APP_FRAMEWORK` / `AGENTGATEWAY_MCP_ROUTER_URL` の 4 変数だけ。一方 `app.ts` の `Env` は
-`AIRPLANE_DB: D1Database` を必須で要求し、`PDS?: Fetcher` / `AUTH_SERVICE?: Fetcher` も
-参照する。**`main` を `app.ts` に差し替えるだけでは動かない** —— CLAUDE.md の
-「Storage: D1. Tables: airports, aircraft, flights, flight_status, incidents」を満たす配線は
-どこにも無い。
+**どの bundle にも入っていないが、それは『appview の残骸』であることを意味しない。**
+これは別の substrate 上の別の実装であり、`worker/svelte/` を置き換える作業とは
+無関係である。『TypeScript を全部消す』という指示でこれを消すのは移行ではなく破壊
+なので、**そのまま残した**。
 
-**F. `worker/` に `package.json` が無いので、`src/app.ts` を型検査する経路が無い。**
-npm プロジェクトは `worker/svelte/` にしか無い。隣の TypeScript を借りて強制的に通すと
-**11 件のエラー**が出る:
+代わりに検証器が**ファイル数と総バイト数を pin** する —— 「元から在った」が黙って
+増えるための口実にならないようにするため。移行するなら、それは AT PDS SDK の cljs
+face を要する別の決定である。
 
-```
-4 件  D1Database / Fetcher が見つからない  ← @cloudflare/workers-types が入らない（＝ F 自身）
-4 件  TS7006  暗黙の any（map の引数 r / i）
-1 件  TS2783  'did' is specified more than once, so this usage will be overwritten  ← G
-2 件  同上の Fetcher（dodaf-bootstrap.ts）
-```
+なお `kotoba/` の NSID 集合は `CLAUDE.md` とも移行前の `app.ts` とも一致しない
+（`reportIncident` / `listIncidents` が無く、`getAirport` 等が在る）。これは移行前から
+そうで、移行は直していない。
 
-対して、実際に配備される `worker/svelte/` は `npm run check` が
-`COMPLETED 163 FILES 0 ERRORS 0 WARNINGS` で通る。**検査されているのは動く側だけで、
-壊れているのは検査されない側**という向きになっている。
+## 持ち越さなかったもの（黙って消していない）
 
-**G. `dodaf-bootstrap.ts` が `PRIMARY_DID` を黙って捨てる。**
+判定は **2 条件の連言**である: deploy されていない **かつ** binding が
+`wrangler.jsonc` に宣言されていない。
 
-```ts
-await xrpc(env.PDS, "com.etzhayyim.dodafv2.deployView", { did, ...v });
-//                                                        ↑ env.PRIMARY_DID
-```
+| 撤去したもの | バイト | deploy | binding |
+|---|---|---|---|
+| `worker/src/app.ts`（8 NSID・D1 5 テーブル DDL・OOOI 状態機械・DMN 重大度） | 23,512 | **無し** | `d1_databases` **0 件** |
+| `worker/src/defence-handlers.ts` | 4,658 | 無し | —（自身のコメントが「Wire into app.ts with:」。一度も wire されていない） |
+| `worker/src/dodaf-bootstrap.ts` | 1,707 | 無し | `PDS` service binding **無し** |
+| `worker/svelte/` 7 ファイル（SvelteKit appview） | 7,432 | **これが deploy 側だった** | 置き換え済み |
 
-`v` は `dodaf/*.json` そのもので、**6 ファイルすべてが自前の `did` キーを持つ**
-（実測: 6/6 が `"did:web:open-airplane.etzhayyim.com"`）。spread が後なので JSON 側が勝ち、
-`env.PRIMARY_DID` は無視される。**今日は両者が同じ文字列なので実害は出ない** —— しかし
-staging 等で別の DID を渡した瞬間に、宛先だけが本番の DID のまま送られる。
-なお `bootstrapDodaf` は `/_app/meta`（§2 のとおり 404）から、しかも `env.PDS` が
-bind されているとき（§3 E のとおり無い）だけ呼ばれるので、**現状は到達不能**である。
+合計 **37,309 バイト / 10 ファイル**。経路としては `/health` `/dodaf` `/forms`
+`/_app/meta` `/_worker/health` が消えた（`/health` だけは cljs 側で作り直した）。
 
-**H. `kotoba/` は 3 つ目の実装で、誰からも参照されていない。** §5。
-
-**I. DMN が 2 箇所にある。** `dmn/incident-severity.dmn` の 5 ルールと、`app.ts` の
-`classifyAviationIncident()` のハードコードは、**今日は一致している**（両方を読んで
-5 ルールとも突き合わせた: fatalities≥1→accident / hullLoss→accident /
-seriousInjuries≥1→serious-incident / atcIncident→serious-incident / 既定→incident）。
-`.dmn` を読む engine はこの repo に無い（参照は `dodaf/OV-5b.json` と `OV-6a.json` の
-**宣言だけ**）ので、TS 側は手写しの複製である。**一致を保つものが無い。**
-
-**J. `CLAUDE.md` の Local Dev 手順が両方とも踏めない。**
+**git 履歴に残っている**:
 
 ```bash
-cd 60-apps/etzhayyim-project-open-airplane/worker   # ← このパスはこの repo に無い（移行前の monorepo のもの）
-wrangler d1 create etzhayyim-open-airplane
-e7m actor deploy .                                   # ← e7m は PATH に無い
+git show 0c0085b:worker/src/app.ts        # 移行直前の commit
 ```
 
-1 行目は `migration.edn` の `:source :path` と同じ文字列で、**移行時に更新されなかった**。
-3 行目の `e7m` は実測で `not found`。踏める手順は `docs/operator-quickstart.md` に置いた。
+戻すなら D1 binding・`worker/package.json`・`@cloudflare/workers-types` が併せて要る
+（`main` を差し替えるだけでは動かない）。**動かない経路を移植して「移行済み」と
+言わないため**に撤去した。
 
-**K. lockfile が 2 プロジェクトとも無い。** `git ls-files | grep lock` は 0 件。
-`kotoba/` も `worker/svelte/` も毎回レンジを解決し直すので、quickstart に載せた
-パッケージ件数は将来ずれる。
+### DoDAF の dangling 参照は「直して」いない
 
-**L. `LICENSE` ファイルが無い。** 各ソースの冒頭は `Apache-2.0` を宣言し
-`see LICENSE at repo root` と書くが、その LICENSE は移行時に付いてこなかった。
+`dodaf/SV-1.json` と `dodaf/OV-6a.json` は `worker/src/app.ts` を Worker の
+entrypoint として名指ししている。撤去でこの参照は宙に浮いた。**文字列を
+`worker.cljs` に書き換えることはしなかった** —— SV-1 が記述しているのは D1 に
+繋がった 8 XRPC interface のシステムで、cljs Worker はそれを実装していない。
+書き換えれば model は**正しく見えるまま嘘になる**。2 ファイルは byte 単位で不変の
+まま残し、代わりに **dangling している集合そのものを検証器の claim にした**
+（`:dangling-entrypoint-refs`）。増えれば落ちる。
 
-**M. `.gitignore` が無い。** quickstart を一度踏むと、生成物 6 件が untracked として
-`git status` に出る（実測: `kotoba/node_modules/` `kotoba/package-lock.json`
-`worker/svelte/node_modules/` `worker/svelte/package-lock.json`
-`worker/svelte/.svelte-kit/` `worker/.wrangler/`）。K と合わさって、
-**`git add -A` 一発で `node_modules` を commit できる状態**になっている。
+## ページが出す値・出さない値
 
-## 4. 実際に緑になるもの
+env の**キー名**は出すが、値は出さない —— **中継先を除いて**。
+`AGENTGATEWAY_MCP_ROUTER_URL` の値だけは、どこへ中継するかを運用者が見る必要が
+あるので意図的に表示する。
 
-嘘の対称性を作らないために、**通るものも測って書く**。
+smoke はこれを**2 つの独立した印**で見る: 出てはいけない値（sentinel を
+`APP_HANDLE` に置く）と、出ていなければならない値（中継先 URL）。片方だけだと
+「全部隠す」実装も「全部出す」実装も通ってしまう。sentinel は**ページが値を出さない
+var** に置く —— ページが実際に出している唯一の値に印を置くと、2 つの検査が同じ
+対象を見てしまい片方が無意味になる。
 
-| 対象 | コマンド | 実測 |
+## UI
+
+基盤は `kotoba-lang/jp-go-digital-design-system`（デジタル庁デザインシステム）。
+色・寸法は `--hig-*` トークン契約だけで書き、raw hex も px フォントサイズも置かない。
+app 固有 CSS は 3 行。CSS は外部リクエストゼロの方針どおり
+`shadow.resource/inline` で bundle に焼く。
+
+決定論的 audit（`kotoba-lang/design-quality`）で **100.00 / 100（gate 95）**。
+**既定は 12 軸のうち 10 軸しか当てない**（CLI が自分でそう言う）ので
+`--extra-axes` も回した —— 12 軸でも 100.00。
+
+### デザインシステムの検査は 2 本ある
+
+`dads-table` が在ることを 1 本で見る形は**落ちない検査**である —— それは view が
+出力する markup であって、CSS が 1 バイトも入っていないページにも現れる。
+**この repo で実測した**（下記「CSS を外した bundle」の mutation）:
+
+| 探す文字列 | CSS 込み | CSS 無し |
 |---|---|---|
-| `kotoba/` 型検査 | `npx tsc --noEmit` | exit 0 / 出力 0 行 |
-| `kotoba/` テスト | `npx vitest run` | **7 passed (1 file)** / 341ms |
-| `worker/svelte/` 型検査 | `npm run check` | `COMPLETED 163 FILES 0 ERRORS 0 WARNINGS` |
-| `worker/svelte/` build | `npm run build` | exit 0 / 4.11s |
-| 配備設定 | `wrangler deploy --dry-run` | exit 0 / 374.40 KiB |
+| `class="dads-table"` | 1 | **1**（変わらない） |
+| `--color-primitive-blue` | 45 | **0** |
 
-つまり **CI に載せられる緑は既に在る**。載っていないだけである（`.github/workflows/` は 0 件、
-`kotoba/package.json` の `test` / `typecheck` を呼ぶものがこの repo に無い）。
-なおこのワークスペースの CI は murakumo fleet であって GitHub Actions ではない
-（superproject の CLAUDE.md / ADR-2607300900）ので、足す先は `scripts/fleet-ci/gates.edn` である。
+だから 2 本に割った。**component を使ったか**と、**stylesheet が実際に入ったか**は
+別の主張である。design-quality のスコアはこの区別をしない。
 
-## 5. `kotoba/` —— 動くが、どこにも繋がっていない実装
+## 呼び先が 1 つも解決しない（移行では直らない）
 
-`kotoba/src/` は `@etzhayyim/sdk` を使い、**AT PDS のレコードとして**空港・機体・
-フライトを持つ実装である（`app.ts` の D1 とは別の substrate）。7 件の vitest が緑で、
-ICAO/IATA/ICAO24 の検証・冪等性・OOOI の終端状態まで押さえている。
+`@1.1.1.1` に直接引いて確認（2026-08-19）:
 
-**しかし NSID の集合が CLAUDE.md とも `app.ts` とも一致しない**（実測、export を列挙）:
-
-| CLAUDE.md が宣言する 8 NSID | `app.ts` | `kotoba/` |
+| ホスト | 役割 | DNS |
 |---|---|---|
-| defineAirport / listAirports | ✔ | ✔ |
-| registerAircraft | ✔ | ✔ |
-| scheduleFlight / recordFlightStatus | ✔ | ✔ |
-| listFlights | ✔ | ✔ |
-| **reportIncident** | ✔ | **無い** |
-| **listIncidents** | ✔ | **無い** |
-| （CLAUDE.md に無い）getAirport / getAircraft / getFlight / listAircraft | 無い | ✔ |
+| `open-airplane.etzhayyim.com` | 公開ホスト（wrangler の route）・`did:web` | **NXDOMAIN** |
+| `mcp.etzhayyim.com` | `/xrpc/:nsid` の中継先 | **NXDOMAIN** |
+| `etzhayyim.com` | apex | NOERROR（104.21.51.111 / 172.67.179.128） |
 
-インシデント経路 —— `dmn/incident-severity.dmn`・`forms/reportIncident.form.json`・
-`bpmn/report-incident.bpmn`・ICAO Annex 13 の重大度判定 —— は、**dead な `app.ts` にしか無い。**
+deploy 先も中継先も、いま存在しない。`/xrpc/` は到達できなければ **502 に URL を
+添えて返す** —— 成功と同じ形で隠さない。移行前は上流 fetch が try/catch されておらず
+SvelteKit の `{"message":"Internal Error"}` **500** に潰れており、どの層が失敗したか
+応答から読めなかった。
 
-そして `kotoba/` は publish されておらず（`"private": true`）、`worker/` からも
-`wrangler.jsonc` からも参照されていない。**動く実装が、配備される物と繋がっていない。**
+## 由来（custody）
 
-## 6. この repo を次に触る人へ
+`migration.edn` は出所を `etzhayyim/root` の tree `433b6395` と宣言する。移行後の状態:
 
-上の A–L は**測っただけで直していない**。直す前に決めるべきことが 1 つあり、それは
-コードの問題ではないからである:
+- 継承した **14 ファイル（25,388 バイト）**は**いまも 1 バイトも変わっていない**
+  （sha256 を検証器に固定）—— `README.edn` `migration.edn` `worker/kotodama.jsonld`
+  `bpmn/`(2) `dmn/`(1) `dodaf/`(6) `forms/`(2)
+- `worker/wrangler.jsonc` と `CLAUDE.md` は**意図的に変更**した。custody の byte 一致
+  集合から外し、**内容で検査する**（意図的な変更と勝手な変更を区別するため）
+- TypeScript/Svelte の 10 ファイルは**移行で撤去**した。検証器はその 10 パスを
+  名指しで「不在であること」を検査する —— byte 合計は「TS が消えた」と言えない
+- `kotoba/` の 8 ファイルは**未変更のまま残した**（上記）
 
-> **3 つの実装のうち、どれが正本か。**
+## 残っている欠陥（移行では直っていない）
 
-- `app.ts`（D1）を正本にするなら: `main` の差し替え + D1 binding + `worker/package.json` +
-  `@cloudflare/workers-types` が要る（E, F）。`kotoba/` は削除するか、`app.ts` から使う。
-- `kotoba/`（AT PDS）を正本にするなら: インシデント経路の移植（§5）と、
-  worker からの呼び出し経路が要る。`app.ts` は削除する。
-- 中継（現状）を正本にするなら: `app.ts` と `kotoba/` は削除し、CLAUDE.md の
-  Architecture 節を「MCP router の薄い前段」に書き換える。C と D（DNS）は別途要る。
+移行前の README が測って記録した欠陥のうち、**移行が直したのは C（中継失敗が層を
+隠す）・E（`main` が動かない実装を指せない）・J（Local Dev 手順が踏めない）・
+M（`.gitignore` が無い）**。**F（`worker/` に型検査経路が無い）は「直した」のでは
+なく、検査されていなかった対象そのものを撤去したことで消えた。** 残りは残っている:
 
-**どれを選んでも、まず C と D が解けない限りこの appview は 500 しか返さない。**
-DNS は この repo の中には無いので、そこは repo の外の判断である。
+1. **D. `open-airplane.etzhayyim.com` / `mcp.etzhayyim.com` が NXDOMAIN。** repo の外の
+   判断。deploy しても誰も到達できず、到達できても中継は 502 になる。
+2. **I. DMN が 2 箇所にある**問題は、TS 側の複製を撤去したことで**1 箇所に減った**が、
+   `dmn/incident-severity.dmn` を読む engine はこの repo に無い（参照は
+   `dodaf/OV-5b.json` と `OV-6a.json` の宣言だけ）。
+3. **K. lockfile が無い**（`kotoba/` も）。毎回レンジを解決し直す。
+4. **L. `LICENSE` ファイルが無い**。各ソース冒頭は Apache-2.0 を宣言し
+   `see LICENSE at repo root` と書くが、その LICENSE は移行時に付いてこなかった。
+5. **H の半分。** `kotoba/` は動くが、deploy される物と繋がっていない（上記）。
+
+## 検証
+
+```bash
+npx nbb scripts/verify-docs-claims.cljs .          # <dir> は先頭に置く
+```
+
+exit 0 = 全一致 / 1 = 食い違い / **2 = 判定できなかった**（0 と区別する）。
+テスト・ビルド・smoke・workerd 実測は `docs/operator-quickstart.md`。
