@@ -1,255 +1,296 @@
-# operator quickstart — app-open-airplane
+# operator-quickstart
 
-`open-airplane.etzhayyim.com` の edge appview を、手元で **build して起動して叩く**まで。
-下の手順は 2026-08-17 (UTC) に clean-room（`node_modules` と `.svelte-kit` が無い状態）で
-実走した結果であり、掲載している数字は**そのとき実際に出た値**である。
+**この repo で今日実際にできることを、踏める形で上から書く。** 所要 5 分。
+Cloudflare のアカウントは要らない（deploy だけが要る。§6）。
 
-読む前に `README.md` の §1–§2 を見ること —— **`worker/src/app.ts` は動いていない。**
-ここで build・起動するのは `worker/svelte/` 側である。
+出力はすべて 2026-08-19 に**実際に walk した結果**である。推測は無い。
 
-実測環境: macOS 26.3.1 (darwin 25.3.0) / node **v26.3.0** / npm **11.16.0** /
-wrangler **4.69.0**。
+移行前のこの文書は SvelteKit のビルド手順を書いていた。**その経路はもう無い**
+（`docs/adr/0001`）。読む前に `README.md` の「deploy されるものは、いま読んで
+いるソースである」を見ること。
 
----
+## 0. 前提
 
-## 0. このマシン特有の前置き（先に読む。読まないと §4 で必ず落ちる）
+| 要るもの | 確認 | この walk で使った版 |
+|---|---|---|
+| git | `git --version` | 2.51.0 |
+| nbb | `npx --yes nbb --version` | v1.4.208 |
+| clojure / java | — | ビルド時のみ（shadow-cljs が使う） |
 
-このワークステーションの `~/.npmrc` には `allow-scripts[]` が設定されている。
-`worker/svelte/` では**警告で済む**が、`kotoba/` は git 依存を持つため
-**install がエラーで止まる**:
-
-```
-npm error code EALLOWSCRIPTS
-npm error --allow-scripts is not allowed in project-scoped installs.
-```
-
-これは repo 側の欠陥ではない（repo に `.npmrc` を足す必要は無い）。回避は
-ユーザ設定を外して 1 回だけ install すること:
+## 1. 取得して、書いてあることが本当か検査する
 
 ```bash
-npm_config_userconfig=/dev/null npm install
+git clone git@github.com:cloud-itonami/app-open-airplane.git
+cd app-open-airplane
+REPO=$PWD
+npx --yes nbb scripts/verify-docs-claims.cljs .
 ```
 
-**以下、`kotoba/` の手順ではこの prefix を付けている。** `~/.npmrc` に
-`allow-scripts[]` が無いマシンでは、prefix 無しでそのまま通る。
+末尾が `OK` なら README の数値・存在・不在は tree と一致している（**23 claim**）。
+**exit 2（UNDETERMINED）は 0 ではない** —— tree を読み切れなかったという別の
+答えで、「検査して問題なし」と混ぜない。
 
-## 1. 場所
+実際の出力（末尾）:
 
-配備単位は repo 直下ではなく `worker/` で、npm プロジェクトは**さらにその下の
-`worker/svelte/`** に在る。
+```
+PASS	page-renders-route-table	expected=true	actual=true
+PASS	gitignored	expected=[]	actual=[]
+OK	every claim in README.md and docs/operator-quickstart.md holds
+```
+
+この検査には移行の不変条件が入っている:
+
+- 撤去した 10 パスの TypeScript が戻っていないこと（`removed-by-migration-absent`）
+  と、**別名で戻っていない**こと（`appview-ts-files`）
+- **`kotoba/` が黙って増えていない**こと（`kotoba-files` / `kotoba-bytes`）——
+  これは移行対象外で意図的に残した TypeScript なので、「元から在った」が
+  口実にならないよう数を固定してある
+- `worker/wrangler.jsonc` の `main` が shadow の出力先を指していること
+- **`:warnings-as-errors` が `:compiler-options` に在ること、かつ
+  `:build-options` に無いこと** —— shadow-cljs.edn を **EDN として parse** して
+  見る。grep では判定できない（§4.1）
+- ページが route 表から描かれていること
+- 継承した 14 ファイルが 1 バイトも変わっていないこと（sha256）
+
+## 2. テストを走らせる（ビルド不要・ブラウザ不要）
+
+判断（`route.cljc`）と描画（`view.cljc`）は純 `.cljc` なので、nbb だけで回る。
 
 ```bash
-cd worker
+K=~/github/com-junkawasaki/orgs/kotoba-lang
+CP="src:test:$K/jp-go-digital-design-system/src:$K/html/src:$K/css/src"
+cat > /tmp/run.cljs <<'RUN'
+(require '[cljs.test :refer [run-tests]] 'open-airplane.route-test)
+(run-tests 'open-airplane.route-test)
+RUN
+npx --yes nbb --classpath "$CP" /tmp/run.cljs
 ```
 
-`wrangler.jsonc` はここに在る。**`worker/` には `package.json` が無い**ので、
-ここで `npm install` を打っても何も起きない（README 欠陥 F）。
+実際の出力:
 
-⚠ `CLAUDE.md` の Local Dev 節は `cd 60-apps/etzhayyim-project-open-airplane/worker` と
-書いているが、**そのパスはこの repo に存在しない**（移行前の monorepo のもの）。
-同節の `e7m actor deploy .` も、`e7m` が PATH に無いので踏めない（実測: `not found`）。
+```
+Testing open-airplane.route-test
 
-## 2. 依存を入れて build する（配備される側）
+Ran 5 tests containing 27 assertions.
+0 failures, 0 errors.
+```
+
+何を固定しているか: `/xrpc/` は**空の nsid だけ** 400 にする（`/xrpc/a/b` は
+移行前の rest parameter `[...path]` と同じく転送する。1 セグメントに絞るのは
+移行ではなく方針変更）、namespace 外の nsid も中継する（移行前の deploy 側と
+同じ）、MCP router の URL 解決（空白だけの設定は未設定として扱う）、
+`result` / `structuredContent` の剥がし方、移行前の `app.ts` にあって deploy
+されていなかった `/dodaf` `/forms` `/_app/meta` `/_worker/health` を
+**持ち越していない**こと、そして**ページが route 表から描かれること**。
+
+## 3. ページを描画して採点する
 
 ```bash
-cd svelte
-npm install
+K=~/github/com-junkawasaki/orgs/kotoba-lang
+CP="src:$K/jp-go-digital-design-system/src:$K/html/src:$K/css/src"
+cat > /tmp/render.cljs <<'REN'
+(require '["node:fs" :as fs] '[open-airplane.view :as view] '[open-airplane.route :as route])
+(.writeFileSync fs "/tmp/oa-page.html"
+  (view/render {:css (.readFileSync fs (str (.-DDS js/process.env) "/resources/jp_go_dds/dds.css") "utf8")
+                :routes route/routes
+                :vars [:AGENTGATEWAY_MCP_ROUTER_URL :APP_FRAMEWORK :APP_HANDLE :PRIMARY_DID]
+                :mcp-url "https://mcp.etzhayyim.com/xrpc/com.etzhayyim.mcp.message"}))
+REN
+DDS="$K/jp-go-digital-design-system" npx --yes nbb --classpath "$CP" /tmp/render.cljs
+
+cd $K/design-quality && npx --yes nbb -m design-quality.cli score /tmp/oa-page.html --min 95
 ```
 
-実測: `added 93 packages, and audited 94 packages in 3s`（exit 0）。
-`esbuild` と `workerd` の postinstall について allow-scripts 警告が 2 件出るが、
-**抑止されたままで §3 の build も §4 の起動も通る**（そこまで確認した）。
+実際の出力（末尾）:
 
-⚠ **lockfile が repo に無い**（README 欠陥 K）。毎回レンジを解決し直すので、93 という数字は
-将来ずれる。この `npm install` は `package-lock.json` を**生成する**が、`.gitignore` が
-無いので untracked ファイルとして `git status` に出る（欠陥 M）。commit しないこと ——
-lockfile を入れるかどうかは、この quickstart ではなく repo の判断である。
+```
+  100.00  /tmp/oa-page.html
+aggregate: 100.00
+axes scored: 10 (viewport, safe-area, dynamic-viewport, tap-targets, focus-visible,
+                 reduced-motion, overflow-guard, color-scheme, responsive, semantics)
+NOT scored: input-zoom, contrast — pass --extra-axes to include the optional ones
+gate: aggregate 100.00 >= min 95.00 -> PASS
+```
+
+**既定では 12 軸のうち 10 軸しか当たらない。CLI が自分でそう言う。** 残り 2 軸も:
 
 ```bash
-npm run check
+npx --yes nbb -m design-quality.cli score /tmp/oa-page.html --min 95 --extra-axes
+# axes scored: 12 (…, input-zoom, contrast)
+# aggregate: 100.00 -> PASS
 ```
 
-実測: `COMPLETED 163 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS`（exit 0）。
-このスクリプトは `svelte-kit sync` を先に走らせるので、`.svelte-kit/tsconfig.json` が
-無い状態（clone 直後）でも単体で通る。
+### この 100.00 が言っていないこと
 
-## 3. build
+**デザインシステムを完全に外しても 96.63 で PASS する**（実測。`:css ""` で
+描画して採点）。つまりこのスコアは「DADS が入っている」ことの証拠にならない。
+それを言えるのは §5 の smoke の 2 本目だけである。
 
-このワークスペースでは重い build を直接起動しない（superproject CLAUDE.md の
-resource governor）。**同時に 1 本**に制限する guard を必ず通す:
+## 4. bundle をビルドする
+
+**高負荷ビルドは同時 1 本に制限されている**（superproject `CLAUDE.md` の
+resource governor）。直接叩かず、必ず guard 経由で:
 
 ```bash
-node /path/to/com-junkawasaki/scripts/resource-guard.mjs run build -- npm run build
+cd "$REPO"
+node ~/github/com-junkawasaki/scripts/resource-guard.mjs run build -- \
+  npx --yes shadow-cljs release worker
+ls -la dist/worker.js
 ```
 
-実測: exit 0。所要は 2 回の実走で 4.11s と 4.63s だった —— **時間を合格判定に使わない**
-（このマシンは並行セッションで load が高い）。見るのは exit code と下の出力である:
+lock を他セッションが持っていると **exit 2** で拒否される。**迂回しない** ——
+これはエラーではなく順番待ちである。
+
+実際の出力（末尾）と成果物:
 
 ```
-.svelte-kit/output/server/entries/endpoints/xrpc/_...path_/_server.ts.js   2.45 kB
-.svelte-kit/output/server/index.js                                       126.05 kB
-Using @sveltejs/adapter-cloudflare  ✔ done
+[:worker] Build completed. (55 files, 12 compiled, 0 warnings, 5.25s)
+dist/worker.js   245,823 bytes
+sha256  0352647af47ba0213e73f1a600ff759759dd8d3ff633579e26ddbf6ed7ec406d
 ```
 
-### build 出力に `src/app.ts` が入らないことを自分で確かめる
+**この sha は cold cache（`rm -rf .shadow-cljs` 後）でのみ再現する。**
+shadow の `:esm` 出力は同一ソースでも incremental rebuild だとバイトが変わる
+（安定して変わる）。成果物を突き合わせるときは必ず cache を消してから。
 
-README §2 の主張はここで再現できる。**`.svelte-kit/` 全体**を検索する（`cloudflare/` だけ
-見ると、adapter の `_worker.js` が `../output/server/index.js` を import するだけの
-4.3 KB なので、何も見つからず誤読する）:
+### 4.1 壊れた var はビルドを**落とす**（実測）
+
+`shadow-cljs.edn` の `:compiler-options` に `:warnings-as-errors true` がある。
+無ければ shadow は存在しない var を **WARNING** にして **exit 0** し、bundle を
+書いてしまう ——「ビルドが通った」は検査ではない（**落ちようがない**）。
+
+この repo で実際に落として確かめた。`src/open_airplane/worker.cljs:115` の
+`route/dispatch` を存在しない `route/dispatch-nonexistent` に改名する:
+
+| 設定 | exit | `dist/worker.js` sha256 | 挙動 |
+|---|---|---|---|
+| `:compiler-options` に在る（現状） | **1** | `0352647a…` **不変** | 出荷しない |
+| `:build-options` に置く（誤配置） | **0** | `3be64d65…` **別物** | `1 warnings` で**出荷する** |
+
+誤配置版の bundle を実際に叩くと、最初のリクエストで
+`Cannot read properties of undefined (reading 'h')` を投げる（smoke は
+`UNDETERMINED` / **exit 2** で「判定できなかった」と答え、合格にはしない）。
+
+**キーは `:build-options` ではなく `:compiler-options` に置く。** shadow が読むのは
+`[:compiler-options :warnings-as-errors]` で、置き場所を間違えると**黙って
+無視される** —— この option が防ぐはずの失敗そのものになる。
+
+**だから検証器は grep ではなく parse する。** 誤配置しても
+`grep -c warnings-as-errors shadow-cljs.edn` は **3** を返す（うち 2 つは置き場所を
+説明する自分のコメント）—— grep 版の検査は自分のコメントに当たって緑のままになる。
+
+## 5. ビルドした成果物を実際に叩く
+
+ここが deploy されるものに触る唯一の検査である。
 
 ```bash
-grep -rl AIRPLANE_DB      .svelte-kit/ | wc -l     # → 0   app.ts の D1 binding
-grep -rl defineAirport    .svelte-kit/ | wc -l     # → 0   app.ts の NSID handler
-grep -rl open-airplane.AV-1 .svelte-kit/ | wc -l   # → 0   app.ts が import する DoDAF view
-grep -rl mcp.etzhayyim.com  .svelte-kit/ | wc -l   # → 1   実際に配備される中継先
+cd "$REPO" && npx --yes nbb scripts/smoke-worker.cljs dist/worker.js
 ```
 
-## 4. 起動して叩く
+実際の出力（21 項目、抜粋）:
+
+```
+PASS	default export has fetch	expected=true	actual=true
+PASS	GET / status	expected=200	actual=200
+PASS	page hides other var values	expected=false	actual=false
+PASS	page shows the relay target it uses	expected=true	actual=true
+PASS	page uses the design system components	expected=true	actual=true
+PASS	page carries the stylesheet itself	expected=true	actual=true
+PASS	POST /xrpc/ status	expected=400	actual=400
+PASS	single-segment nsid is relayed (unreachable -> 502)	expected=502	actual=502
+PASS	multi-segment nsid is relayed too, not rejected	expected=502	actual=502
+PASS	un-deployed app.ts route was not carried over	expected=404	actual=404
+OK	the built bundle answers as the route table says
+```
+
+**bundle が無ければ exit 2**（「判定できなかった」であって合格ではない）。
+
+3 組の検査は、それぞれ**片方だけでは落ちない**ので割ってある:
+
+| 主張 | 印 | 割らないと |
+|---|---|---|
+| view がライブラリを呼んだ | `class="dads-table"` | CSS 0 バイトでも出る（実測: css 有 1 / css 無 **1**） |
+| stylesheet が実際に入った | `--color-primitive-blue` | 上と混ざる（実測: 45 / **0**） |
+| 値を出していない | sentinel（`APP_HANDLE` に置く） | 「全部隠す」実装が通る |
+| 出すべき値は出している | 中継先 URL | 「全部出す」実装が通る |
+
+sentinel は**ページが値を出さない var** に置く —— ページが実際に出している唯一の
+値に印を置くと、2 つの検査が同じ対象を見てしまい片方が無意味になる。
+中継先は `.invalid`（RFC 2606 で必ず解決しない TLD）にしてあるので、
+**「中継された」ことを実 DNS に依存せず**確かめられる。
+
+## 5.5 Workers ランタイム（workerd）で動かす
+
+Node で import する smoke より強い検査。実際の workerd で起こす。
 
 ```bash
-cd ..            # worker/ に戻る（wrangler.jsonc の隣）
-wrangler dev --local --port 8899 --ip 127.0.0.1
+cd "$REPO/worker"
+npx --yes wrangler@latest dev --local --port 8812 --ip 127.0.0.1
+# 別シェルで
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' http://127.0.0.1:8812/
+curl -s http://127.0.0.1:8812/health
 ```
 
-実測で出るが**無視してよい**もの:
+実際の出力:
 
-- `Error: EMFILE: too many open files, watch` が多数 —— このマシンは並行セッションで
-  fd を使い切っており、file watcher が張れないだけ。**サーバは起動する。**
-- `The latest compatibility date supported by the installed Cloudflare Workers Runtime is
-  "2026-03-05", but you've requested "2026-04-20". Falling back to "2026-03-05"` ——
-  wrangler 4.69.0 と `wrangler.jsonc` の `compatibility_date` の差。
+```
+GET  /            -> 200 text/html; charset=utf-8
+GET  /health      -> {"ok":true,"app":"open-airplane","runtime":"cljs","routes":["/","/health","/xrpc/:nsid"]}
+POST /xrpc/       -> 400 {"error":"Missing XRPC method"}
+POST /xrpc/<nsid> -> 502 {"error":"MCP router unreachable","url":"https://mcp.etz…"}
+POST /xrpc/a/b    -> 502
+OPTIONS /xrpc/x   -> 204
+GET  /nope        -> 404
+POST /health      -> 405
+GET  /dodaf       -> 404
+```
 
-`[wrangler:info] Ready on http://127.0.0.1:8899` が出たら次へ。
+ページは 81,835 バイト、DADS の CSS 変数 45 箇所、`APP_HANDLE` の**キーは 1 回
+出て値は 0 回**。
 
-### 実測した応答（この表と違ったら、それは変化である）
+`compatibility_flags`（`nodejs_compat`）は SvelteKit の adapter-cloudflare 由来で、
+この bundle には要らない。**撤去は憶測ではなく、flags を外した設定のまま
+workerd を起こしてこの全 route を確認してから行った。**
+
+## 6. deploy
 
 ```bash
-B=http://127.0.0.1:8899
-curl -s -o /dev/null -w '%{http_code}\n' $B/                                              # 200
-curl -s -o /dev/null -w '%{http_code}\n' $B/health                                        # 404
-curl -s -o /dev/null -w '%{http_code}\n' $B/_app/meta                                     # 404  (body: "Not found")
-curl -s -o /dev/null -w '%{http_code}\n' $B/dodaf                                         # 404
-curl -s -o /dev/null -w '%{http_code}\n' $B/forms                                         # 404
-curl -s -o /dev/null -w '%{http_code}\n' $B/xrpc/com.etzhayyim.apps.openAirplane.listAirports   # 405 "GET method not allowed"
-curl -s -o /dev/null -w '%{http_code}\n' -X OPTIONS $B/xrpc/whatever                      # 204
+cd "$REPO/worker"
+npx wrangler deploy
 ```
 
-`/health` `/dodaf` `/forms` `/_app/meta` は **`src/app.ts` が実装しているが配備されない**
-ので 404 になる（README 欠陥 A）。`GET /xrpc/*` が 405 なのは、配備される handler が
-`POST` と `OPTIONS` しか export していないため。
+**ただし route が指すホストは解決しない。** `@1.1.1.1` に直接引いた実測:
 
-### XRPC は 3 種類とも 500 になる（現在地）
+```
+open-airplane.etzhayyim.com  → NXDOMAIN
+mcp.etzhayyim.com            → NXDOMAIN
+etzhayyim.com                → 104.21.51.111 / 172.67.179.128（apex は在る）
+```
+
+deploy が成功しても誰も到達できず、到達できたとしても中継は **502 を返す**
+（成功と同じ形で隠さない）。superproject の deploy guard は `origin/main` を
+含む checkout からの deploy しか許さない点も併せて注意。
+
+**この移行では deploy していない。** ビルドと workerd 実測までで止めてある。
+
+## 7. `kotoba/` を触るなら
+
+`kotoba/` は移行対象外の TypeScript ドメインライブラリである（`README.md` の
+「`kotoba/` は移行の対象ではない」）。そこだけは npm で動く:
 
 ```bash
-post() { curl -s -w ' -> %{http_code}\n' -X POST $B/xrpc/$1 -H 'content-type: application/json' -d '{}'; }
-post com.etzhayyim.apps.openAirplane.listAirports          # {"message":"Internal Error"} -> 500
-post com.etzhayyim.apps.openAirplane.thisMethodDoesNotExist # {"message":"Internal Error"} -> 500
-post com.example.totallyUnrelated.doAnything               # {"message":"Internal Error"} -> 500
+cd "$REPO/kotoba" && npm install && npx tsc --noEmit && npx vitest run
 ```
 
-**3 つが同一の応答になる**ことを確認すること。配備される handler は NSID を検査せず、
-何でも MCP router へ渡す（README 欠陥 B / §2）。
+**この walk では実行していない**（移行の範囲外で、`@etzhayyim/sdk` を git から
+取りに行くため）。移行前の測定では `tsc --noEmit` が exit 0、`vitest run` が
+7 passed だった —— それは移行前の値であって、ここで再測定はしていない。
 
-原因は上流である。`wrangler dev` のログに出る実際の例外はこれ:
+## 8. ここに無いもの
 
-```
-Error: internal error; reference = ...
-    at async POST (.svelte-kit/output/server/entries/endpoints/xrpc/_...path_/_server.ts.js:27)
-```
-
-27 行目は上流 `fetch` である。上流のホストが引けないことを、**ローカル resolver に
-依存しない形で**確かめる:
-
-```bash
-dig mcp.etzhayyim.com @1.1.1.1 +noall +comment   # → status: NXDOMAIN
-dig etzhayyim.com     @1.1.1.1 +short            # → 172.67.179.128  （apex は在る）
-```
-
-つまり **500 は手元の環境不備ではない**（README 欠陥 C）。`AGENTGATEWAY_MCP_ROUTER_URL` を
-到達可能な router に向けない限り、この worker は本番でも同じ 500 を返す。
-
-## 5. `kotoba/` を検査する（3 つ目の実装）
-
-`worker/` とは独立した npm プロジェクトで、AT PDS 上の実装 + テストが入っている。
-**§0 の prefix が要る。**
-
-```bash
-cd kotoba
-npm_config_userconfig=/dev/null npm install
-```
-
-実測: exit 0、**2 分 6 秒**（`@etzhayyim/sdk` と `@etzhayyim/sdk-mock` を git から取得し、
-その依存を含めて解決するため。`worker/svelte/` の 10s とは桁が違う）。
-`prepare: tsc` を持つ 8 パッケージについて allow-scripts 警告が出るが、**抑止されたままで
-下の型検査とテストは通る**（そこまで確認した）。
-
-```bash
-npm_config_userconfig=/dev/null npx tsc --noEmit    # exit 0 / 出力 0 行
-npm_config_userconfig=/dev/null npx vitest run
-```
-
-実測:
-
-```
- Test Files  1 passed (1)
-      Tests  7 passed (7)
-   Duration  341ms
-```
-
-**この 7 件は現在どの CI からも呼ばれていない**（README §4）。
-
-## 6. 配備設定を検証する（deploy はしない）
-
-```bash
-cd worker
-wrangler deploy --dry-run --outdir /tmp/wr-dry
-```
-
-実測: exit 0 / `Total Upload: 374.40 KiB / gzip: 86.68 KiB`。列挙される binding は
-これだけである:
-
-```
-env.ASSETS                        Assets
-env.APP_HANDLE                    "open-airplane.etzhayyim.com"
-env.PRIMARY_DID                   "did:web:open-airplane.etzhayyim.com"
-env.APP_FRAMEWORK                 "sveltekit-edge-bff"
-env.AGENTGATEWAY_MCP_ROUTER_URL   "https://mcp.etzhayyim.com/xrpc/com.et..."
-```
-
-**D1 が無い**ことをここで確認できる（README 欠陥 E）。`CLAUDE.md` は
-「Storage: D1. Tables: airports, aircraft, flights, flight_status, incidents」と書くが、
-`d1_databases` は `wrangler.jsonc` に 1 つも無い。
-
-### 本番 deploy について
-
-**この quickstart は deploy を含まない。** 宣言 route `open-airplane.etzhayyim.com/*` は
-公開 DNS に無く（`dig ... @1.1.1.1` → NXDOMAIN、README 欠陥 D）、上流も無い（欠陥 C）ので、
-今 deploy しても届かない先に 500 を返す worker を置くだけになる。
-
-実際に deploy する段になったら、superproject の規則に従うこと —— **`origin/main` を
-包含した checkout からのみ deploy する**（PreToolUse hook
-`wrangler-deploy-main-sync-guard.cljs` が強制する。deploy には push と違って
-fast-forward 検査が無く、古い checkout から出すと他セッションの変更を黙って巻き戻す）。
-
-## 7. 後片付け
-
-```bash
-pkill -f "wrangler dev --local --port 8899"
-```
-
-⚠ **この repo には `.gitignore` が無い**（README 欠陥 M）。上の手順を踏むと、
-生成物が全部 untracked として `git status` に出る —— 実測:
-
-```
-?? kotoba/node_modules/          ?? worker/.wrangler/
-?? kotoba/package-lock.json      ?? worker/svelte/.svelte-kit/
-?? worker/svelte/node_modules/   ?? worker/svelte/package-lock.json
-```
-
-**`git add -A` を打たないこと。** 消すなら明示的に:
-
-```bash
-rm -rf kotoba/node_modules kotoba/package-lock.json \
-       worker/svelte/node_modules worker/svelte/package-lock.json \
-       worker/svelte/.svelte-kit worker/.wrangler /tmp/wr-dry
-```
+- `worker/src/app.ts` の 8 NSID 実装 / D1 の 5 テーブル / OOOI 状態機械 /
+  DMN 重大度分類 —— deploy されておらず binding も宣言されていなかったので
+  **持ち越していない**（`README.md` の「持ち越さなかったもの」）。
+  `git show 0c0085b:worker/src/app.ts` で読める
+- `/dodaf` `/forms` `/_app/meta` `/_worker/health` —— 同上
+- 運航そのもの（この repo は appview であって運航系ではない）
