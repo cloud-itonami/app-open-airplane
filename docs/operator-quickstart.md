@@ -26,7 +26,7 @@ REPO=$PWD
 npx --yes nbb scripts/verify-docs-claims.cljs .
 ```
 
-末尾が `OK` なら README の数値・存在・不在は tree と一致している（**23 claim**）。
+末尾が `OK` なら README の数値・存在・不在は tree と一致している（**25 claim**）。
 **exit 2（UNDETERMINED）は 0 ではない** —— tree を読み切れなかったという別の
 答えで、「検査して問題なし」と混ぜない。
 
@@ -71,7 +71,7 @@ npx --yes nbb --classpath "$CP" /tmp/run.cljs
 ```
 Testing open-airplane.route-test
 
-Ran 5 tests containing 27 assertions.
+Ran 6 tests containing 35 assertions.
 0 failures, 0 errors.
 ```
 
@@ -141,15 +141,22 @@ ls -la dist/worker.js
 lock を他セッションが持っていると **exit 2** で拒否される。**迂回しない** ——
 これはエラーではなく順番待ちである。
 
-実際の出力（末尾）と成果物:
+実際の出力（末尾）と成果物 —— **commit `50ce3d0` を cold cache でビルドした値**:
 
 ```
-[:worker] Build completed. (55 files, 12 compiled, 0 warnings, 5.25s)
-dist/worker.js   245,823 bytes
-sha256  0352647af47ba0213e73f1a600ff759759dd8d3ff633579e26ddbf6ed7ec406d
+[:worker] Build completed. (55 files, 12 compiled, 0 warnings)
+dist/worker.js   253,463 bytes
+sha256  4e6790ed59a4ab1b68b4c131e99438538ad2a7d40ac45bfe78684a7c7c9e00d3
 ```
 
-**この sha は cold cache（`rm -rf .shadow-cljs` 後）でのみ再現する。**
+**この 2 つの数は commit に紐づく。** `src/` が 1 バイト変われば別の値になる ——
+実際、移行時の `245,823` / `0352647a…` は `agent/relay-headers`（`50ce3d0`、
+中継ヘッダの転送）が worker.cljs と route.cljc を変えた時点で古くなった。
+**HEAD が `50ce3d0` でないなら、上の値と比べずに derive し直すこと**
+（`shasum -a 256 dist/worker.js`）。ここに書いてあるのは「いま出るはずの値」では
+なく「その commit で出た値」である。
+
+**そして cold cache（`rm -rf .shadow-cljs` 後）でのみ再現する。**
 shadow の `:esm` 出力は同一ソースでも incremental rebuild だとバイトが変わる
 （安定して変わる）。成果物を突き合わせるときは必ず cache を消してから。
 
@@ -160,12 +167,37 @@ shadow の `:esm` 出力は同一ソースでも incremental rebuild だとバ�
 書いてしまう ——「ビルドが通った」は検査ではない（**落ちようがない**）。
 
 この repo で実際に落として確かめた。`src/open_airplane/worker.cljs:115` の
-`route/dispatch` を存在しない `route/dispatch-nonexistent` に改名する:
+`route/dispatch` を存在しない `route/dispatch-nonexistent` に改名する。
+**両方の行を cold cache で測る** —— `:esm` 出力は同一ソースでも incremental
+rebuild だとバイトが変わるので、cache を消さずに測った sha は他の行と比較でき
+ないし、誰も再現できない:
 
-| 設定 | exit | `dist/worker.js` sha256 | 挙動 |
+```bash
+sed -i '' '115s/route\/dispatch /route\/dispatch-nonexistent /' src/open_airplane/worker.cljs
+rm -rf .shadow-cljs dist    # ← 行ごとに必ず消す
+node ~/github/com-junkawasaki/scripts/resource-guard.mjs run build -- \
+  npx --yes shadow-cljs release worker > /tmp/b.log 2>&1; echo "exit=$?"
+shasum -a 256 dist/worker.js
+```
+
+| 設定 | exit | `dist/worker.js` | 挙動 |
 |---|---|---|---|
-| `:compiler-options` に在る（現状） | **1** | `0352647a…` **不変** | 出荷しない |
-| `:build-options` に置く（誤配置） | **0** | `3be64d65…` **別物** | `1 warnings` で**出荷する** |
+| `:compiler-options` に在る（現状） | **1** | **§4 の sha のまま不変**（書き出さない） | 出荷しない |
+| `:build-options` に置く（誤配置） | **0** | **§4 と別の、より小さい bundle** | `1 warnings` で**出荷する** |
+
+誤配置版が小さくなるのは、`route/dispatch` が未宣言になった結果 `route.cljc` 側の
+`dispatch` がどこからも参照されなくなり DCE で落ちるからである（移行時のソースでは
+245,823 → 244,923 B の差だった）。
+
+⚠ **この表はかつて 2 行目に `3be64d65…` という literal な sha を載せていた。
+それは cold cache では再現しない値だった** —— 移行時の 13 mutation を順に当てる
+途中で（`.shadow-cljs` を残したまま）測られた incremental の出力で、**この文書が
+すぐ上で警告している当のもの**を表自身が踏んでいた。2026-08-19 の検証で cold から
+2 回測り直し（当時のソースで `0b937b95…` に安定）、**そのうえで literal を捨てて
+関係で書き直した** —— sha は commit ごとに変わるので、この表の主張（「不変」か
+「別物」か）を literal で書くと、`src/` を触るたびに 2 つとも嘘になる。実際
+`0352647a…` は `50ce3d0` で古くなった。**比べるべきは §4 で自分が derive した値
+であって、ここに焼かれた 16 進ではない。**
 
 誤配置版の bundle を実際に叩くと、最初のリクエストで
 `Cannot read properties of undefined (reading 'h')` を投げる（smoke は

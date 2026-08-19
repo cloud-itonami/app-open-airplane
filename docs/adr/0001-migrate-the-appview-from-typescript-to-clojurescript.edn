@@ -152,11 +152,12 @@ CSS は `shadow.resource/inline` で bundle に焼く（外部リクエストゼ
 
 ## 検証（この ADR を書いた時点で実際に通したもの）
 
-- `open-airplane.route-test`: **5 tests / 27 assertions、0 failures**（nbb、ビルド不要）
+- `open-airplane.route-test`: **6 tests / 35 assertions、0 failures**（nbb、ビルド不要）
 - ページ描画 → design-quality **100.00**、gate PASS（10 軸 / 12 軸とも）
-- `scripts/verify-docs-claims.cljs`: **21 claim すべて PASS**、exit 0
-- `shadow-cljs release worker`: 55 files / 12 compiled / **0 warnings** / 6.12s、
-  `dist/worker.js` 245,823 バイト
+- `scripts/verify-docs-claims.cljs`: **25 claim すべて PASS**、exit 0
+- `shadow-cljs release worker`: 55 files / 12 compiled / **0 warnings**、
+  `dist/worker.js` 245,823 バイト（移行時点の値。`50ce3d0` で中継ヘッダの転送が
+  入り、現在は 253,463 バイト / `4e6790ed…` —— bundle の数は commit に紐づく）
 - `scripts/smoke-worker.cljs`: ビルド済み bundle を import して **21 項目** PASS
 - **workerd（`wrangler dev --local`）で全 route を実測**。Node で import する
   smoke より強い証拠である（実際の Workers ランタイム）。
@@ -212,7 +213,7 @@ cljs の `:esm` bundle には要らない。**flags を外した設定のまま 
 | M2 | view: route 行を焼き込む | test `page-shows-the-real-routes` + claim `page-renders-route-table` | — |
 | M3 | page: viewport meta を除去 | design-quality **88.76 < 95 FAIL** | — |
 | M4 | worker: 存在しない var を参照 | **build exit 1**、bundle sha 不変（出荷しない） | — |
-| M4b | 同上 + キーを `:build-options` へ移す | claim `warnings-as-errors` / `warnings-as-errors-not-misplaced` | **grep は 3 hit で緑のまま**（うち 2 つは自分のコメント）。build は exit 0 で `3be64d65…` を**出荷した** |
+| M4b | 同上 + キーを `:build-options` へ移す | claim `warnings-as-errors` / `warnings-as-errors-not-misplaced` | **grep は 3 hit で緑のまま**（うち 2 つは自分のコメント）。build は exit 0 で**別の、より小さい bundle を出荷した**（DCE で未参照になった `dispatch` が落ちる） |
 | M5 | worker: dds.css の inline を空文字に | smoke `page carries the stylesheet itself` | smoke `page uses the design system components` は**緑のまま** |
 | M6 | view: env の値も描画する | smoke `page hides other var values` | smoke `page shows the relay target` / `shows a var key` は**緑のまま** |
 | M7 | route: 多段パスを絞る（bundle 経由） | smoke `multi-segment nsid is relayed too` ほか 1 | smoke `single-segment … relayed` は**緑のまま** |
@@ -227,7 +228,7 @@ cljs の `:esm` bundle には要らない。**flags を外した設定のまま 
 併せて観測している。落ちるべきものだけが落ちたので、狙いが外れていない。
 
 **13 mutation のあと、cold cache（`rm -rf .shadow-cljs`）で再ビルドして
-bundle の sha256 が `0352647a…` に戻ることを確認した。** 復元は byte 単位で
+bundle の sha256 が mutation 前の値に戻ることを確認した。** 復元は byte 単位で
 完全である。この確認は cold cache でしか意味を持たない —— shadow の `:esm`
 出力は同一ソースでも incremental rebuild だとバイトが変わる（安定して変わる）。
 

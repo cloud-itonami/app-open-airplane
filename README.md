@@ -6,7 +6,7 @@ deploy されるのは XRPC 要求を MCP router へ中継する Worker 1 本と
 
 **2026-08-19 に appview を TypeScript/Svelte から ClojureScript へ移行した**
 （`docs/adr/0001`）。数字はすべて `scripts/verify-docs-claims.cljs` が tree から
-再計算して検査する（23 claim）。
+再計算して検査する（25 claim）。
 
 | | |
 |---|---|
@@ -87,7 +87,7 @@ deploy された面が答えているかを外から確かめる経路が 1 本�
 | 面 | ファイル |
 |---|---|
 | 判断・描画・edge | `src/open_airplane/{route.cljc, view.cljc, worker.cljs}` |
-| テスト | `test/open_airplane/route_test.cljc`（5 tests / 27 assertions） |
+| テスト | `test/open_airplane/route_test.cljc`（6 tests / 35 assertions） |
 | ビルド | `deps.edn` / `shadow-cljs.edn` / `.gitignore` |
 | Worker 設定 | `worker/wrangler.jsonc` |
 | actor 記述子 | `worker/kotodama.jsonld` |

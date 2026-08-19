@@ -114,7 +114,10 @@
        (catch :default _ nil)))
 (defn strip-jsonc [s] (str/replace s #"(?m)^\s*//.*$" ""))
 
+(def claims-run (atom 0))
+
 (defn check! [label expected actual]
+  (swap! claims-run inc)
   (let [ok (= expected actual)]
     (println (str (if ok "PASS" "FAIL") "\t" (name label)
                   "\texpected=" (pr-str expected) "\tactual=" (pr-str actual)))
@@ -234,7 +237,56 @@
         (undet! ".gitignore unreadable")
         (check! :gitignored []
                 (vec (remove (fn [e] (some #(= e (str/trim %)) (str/split-lines g)))
-                             ["dist/" ".cpcache/" ".shadow-cljs/" "node_modules/" ".wrangler/"])))))))
+                             ["dist/" ".cpcache/" ".shadow-cljs/" "node_modules/" ".wrangler/"])))))
+
+    ;; The test count is quoted in all three documents too, and it drifted the
+    ;; same way within hours of the migration merging: agent/relay-headers added
+    ;; a test on 2026-08-19 and left "5 tests" standing in three places while the
+    ;; suite ran 6. deftest forms ARE derivable from the tree, so pin them.
+    ;;
+    ;; The ASSERTION count is deliberately NOT claimed. It is not derivable
+    ;; here: `is` forms nested in `testing` and split across lines make a grep
+    ;; disagree with the runner (30 vs 35 when measured 2026-08-19). Claiming it
+    ;; from a grep would be a check that is confidently wrong, which is worse
+    ;; than one that is absent -- the suite itself is what checks that number.
+    (let [t (slurp* "test/open_airplane/route_test.cljc")
+          docs ["README.md"
+                "docs/operator-quickstart.md"
+                "docs/adr/0001-migrate-the-appview-from-typescript-to-clojurescript.edn"]
+          unreadable (vec (remove #(some? (slurp* %)) (cons "test/open_airplane/route_test.cljc" docs)))]
+      (if (seq unreadable)
+        (undet! (str "unreadable: " (str/join ", " unreadable)))
+        (let [n (count (re-seq #"(?m)^\(deftest\s" t))]
+          (check! :declared-tests []
+                  (vec (for [d docs
+                             m (re-seq #"(\d+)\s*tests" (slurp* d))
+                             :let [q (js/parseInt (second m))]
+                             :when (not= q n)]
+                         (str d " says " q " tests, the file declares " n)))))))
+
+    ;; How many claims this script checks is ITSELF a documented number --
+    ;; README.md, docs/operator-quickstart.md and docs/adr/0001 each quote it --
+    ;; and until now nothing re-derived it, so it drifted: the ADR said 21 while
+    ;; the script ran 23 (measured 2026-08-19, verifying the merged migration).
+    ;; That is this file's own defect class, one level up: a number in prose
+    ;; that no check derives goes stale silently and still reads as evidence.
+    ;; So the count checks itself.
+    ;;
+    ;; The total INCLUDES this check, hence (inc @claims-run): adding a claim
+    ;; without updating all three documents is what goes red.
+    (let [docs ["README.md"
+                "docs/operator-quickstart.md"
+                "docs/adr/0001-migrate-the-appview-from-typescript-to-clojurescript.edn"]
+          total (inc @claims-run)
+          unreadable (vec (remove #(some? (slurp* %)) docs))]
+      (if (seq unreadable)
+        (undet! (str "doc unreadable: " (str/join ", " unreadable)))
+        (check! :documented-claim-count []
+                (vec (for [d docs
+                           m (re-seq #"\*{0,2}(\d+)\*{0,2}\s*claim" (slurp* d))
+                           :let [n (js/parseInt (second m))]
+                           :when (not= n total)]
+                       (str d " says " n ", script runs " total))))))))
 
 (let [u @undetermined f @failures]
   (when (seq u)
