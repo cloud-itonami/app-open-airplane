@@ -40,7 +40,7 @@
 (def root (or (first (remove #(str/starts-with? % "--") *command-line-args*)) "."))
 
 (def claims
-  {:tracked-files 36
+  {:tracked-files 37
    :inherited-bytes 25388          ; the 14 inherited files still carried unchanged
    :kotoba-files 8                 ; the domain library that is NOT part of this migration
    :kotoba-bytes 23326
