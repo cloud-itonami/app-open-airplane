@@ -23,7 +23,7 @@ Cloudflare のアカウントは要らない（deploy だけが要る。§6）�
 git clone git@github.com:cloud-itonami/app-open-airplane.git
 cd app-open-airplane
 REPO=$PWD
-npx --yes nbb scripts/verify-docs-claims.cljk .
+npx --yes kbb --backend sci scripts/verify-docs-claims.cljk .
 ```
 
 末尾が `OK` なら README の数値・存在・不在は tree と一致している（**25 claim**）。
@@ -63,7 +63,7 @@ cat > /tmp/run.cljs <<'RUN'
 (require '[cljs.test :refer [run-tests]] 'open-airplane.route-test)
 (run-tests 'open-airplane.route-test)
 RUN
-npx --yes nbb --classpath "$CP" /tmp/run.cljs
+npx --yes kbb --backend sci --classpath "$CP" /tmp/run.cljs
 ```
 
 実際の出力:
@@ -96,9 +96,9 @@ cat > /tmp/render.cljs <<'REN'
                 :vars [:AGENTGATEWAY_MCP_ROUTER_URL :APP_FRAMEWORK :APP_HANDLE :PRIMARY_DID]
                 :mcp-url "https://mcp.etzhayyim.com/xrpc/com.etzhayyim.mcp.message"}))
 REN
-DDS="$K/jp-go-digital-design-system" npx --yes nbb --classpath "$CP" /tmp/render.cljs
+DDS="$K/jp-go-digital-design-system" npx --yes kbb --backend sci --classpath "$CP" /tmp/render.cljs
 
-cd $K/design-quality && npx --yes nbb -m design-quality.cli score /tmp/oa-page.html --min 95
+cd $K/design-quality && npx --yes kbb --backend sci -m design-quality.cli score /tmp/oa-page.html --min 95
 ```
 
 実際の出力（末尾）:
@@ -115,7 +115,7 @@ gate: aggregate 100.00 >= min 95.00 -> PASS
 **既定では 12 軸のうち 10 軸しか当たらない。CLI が自分でそう言う。** 残り 2 軸も:
 
 ```bash
-npx --yes nbb -m design-quality.cli score /tmp/oa-page.html --min 95 --extra-axes
+npx --yes kbb --backend sci -m design-quality.cli score /tmp/oa-page.html --min 95 --extra-axes
 # axes scored: 12 (…, input-zoom, contrast)
 # aggregate: 100.00 -> PASS
 ```
@@ -134,7 +134,7 @@ resource governor）。直接叩かず、必ず guard 経由で:
 ```bash
 cd "$REPO"
 node ~/github/com-junkawasaki/scripts/resource-guard.mjs run build -- \
-  npx --yes shadow-cljs release worker
+  npx --yes amu compile --target wasm32-browser worker
 ls -la dist/worker.js
 ```
 
@@ -176,7 +176,7 @@ rebuild だとバイトが変わるので、cache を消さずに測った sha �
 sed -i '' '115s/route\/dispatch /route\/dispatch-nonexistent /' src/open_airplane/worker.cljk
 rm -rf .shadow-cljs dist    # ← 行ごとに必ず消す
 node ~/github/com-junkawasaki/scripts/resource-guard.mjs run build -- \
-  npx --yes shadow-cljs release worker > /tmp/b.log 2>&1; echo "exit=$?"
+  npx --yes amu compile --target wasm32-browser worker > /tmp/b.log 2>&1; echo "exit=$?"
 shasum -a 256 dist/worker.js
 ```
 
@@ -216,7 +216,7 @@ shasum -a 256 dist/worker.js
 ここが deploy されるものに触る唯一の検査である。
 
 ```bash
-cd "$REPO" && npx --yes nbb scripts/smoke-worker.cljk dist/worker.js
+cd "$REPO" && npx --yes kbb --backend sci scripts/smoke-worker.cljk dist/worker.js
 ```
 
 実際の出力（21 項目、抜粋）:
