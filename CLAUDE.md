@@ -23,7 +23,7 @@ airport / aircraft / flight / incident. Apache-2.0.
 
 ## Architecture（deploy される物）
 
-- **Runtime**: Cloudflare Worker、**ClojureScript**。`src/open_airplane/worker.cljs`
+- **Runtime**: Cloudflare Worker、**ClojureScript**。`src/open_airplane/worker.cljk`
   を shadow-cljs（`:target :esm`）が `dist/worker.js` にコンパイルし、
   `worker/wrangler.jsonc` の `main` がそれを指す。判断は `route.cljc`、
   ページは `view.cljc`（どちらも純 `.cljc`）。
@@ -70,7 +70,7 @@ PATH に無い `e7m`）。踏める手順の正本は `docs/operator-quickstart.
 ```bash
 node ~/github/com-junkawasaki/scripts/resource-guard.mjs run build -- \
   npx shadow-cljs release worker      # dist/worker.js を作る
-npx nbb scripts/smoke-worker.cljs dist/worker.js
+npx nbb scripts/smoke-worker.cljk dist/worker.js
 cd worker && npx wrangler dev --local --port 8811
 ```
 

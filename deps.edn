@@ -10,7 +10,7 @@
 ;; NOTE: `kotoba/` in this repo is a SEPARATE TypeScript domain library on the
 ;; AT PDS substrate. It is in no bundle, is referenced by nothing here, and is
 ;; deliberately NOT part of this migration -- see README.md "kotoba/ は移行の
-;; 対象ではない". Its file count is pinned by scripts/verify-docs-claims.cljs.
+;; 対象ではない". Its file count is pinned by scripts/verify-docs-claims.cljk.
 {:paths ["src"]
  :deps {
         ;; kotoba.lang.text, not clojure.string. Pinned as an explicit floor:

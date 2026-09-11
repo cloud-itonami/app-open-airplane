@@ -43,9 +43,9 @@
 
 **appview を ClojureScript に移し、appview の TypeScript と Svelte を撤去する。**
 
-    src/open_airplane/route.cljc    判断（どの handler が答えるか）
-    src/open_airplane/view.cljc     ページ（jp-go-dds の hiccup）
-    src/open_airplane/worker.cljs   Request/Response に触る唯一の層
+    src/open_airplane/route.cljk    判断（どの handler が答えるか）
+    src/open_airplane/view.cljk     ページ（jp-go-dds の hiccup）
+    src/open_airplane/worker.cljk   Request/Response に触る唯一の層
             ↓ shadow-cljs :target :esm
     dist/worker.js                  worker/wrangler.jsonc の main が指すもの
 
@@ -63,7 +63,7 @@ ingress capability が `:native-aot` / `:wasm-aot` とも pending だからで�
 ### これで消えた欠陥
 
 - **開くファイルと動くファイルが違う** —— 構造的に消えた。`main` が指す bundle は
-  `src/` からコンパイルされる。`scripts/verify-docs-claims.cljs` が
+  `src/` からコンパイルされる。`scripts/verify-docs-claims.cljk` が
   shadow の `:output-dir` と wrangler の `main` と export の ns 名が噛み合って
   いることを検査する（**shadow-cljs.edn は parse する。grep しない**）。
 - **ページの定数と設定のずれ** —— 構造的に消えた。ページは route 表
@@ -127,7 +127,7 @@ substrate の TypeScript ドメインライブラリ**で、`worker/` からも
 `worker/svelte/` を置き換える作業とは無関係である。
 
 『TypeScript を全部消す』という指示でこれを消すのは移行ではなく破壊なので、
-**そのまま残した**。代わりに `scripts/verify-docs-claims.cljs` が
+**そのまま残した**。代わりに `scripts/verify-docs-claims.cljk` が
 **ファイル数と総バイト数を pin** する —— 『元から在った』が黙って増えるための
 口実にならないようにするためである。移行するなら、それは AT PDS SDK の cljs
 face を要する別の決定である。
@@ -154,11 +154,11 @@ CSS は `shadow.resource/inline` で bundle に焼く（外部リクエストゼ
 
 - `open-airplane.route-test`: **6 tests / 35 assertions、0 failures**（nbb、ビルド不要）
 - ページ描画 → design-quality **100.00**、gate PASS（10 軸 / 12 軸とも）
-- `scripts/verify-docs-claims.cljs`: **25 claim すべて PASS**、exit 0
+- `scripts/verify-docs-claims.cljk`: **25 claim すべて PASS**、exit 0
 - `shadow-cljs release worker`: 55 files / 12 compiled / **0 warnings**、
   `dist/worker.js` 245,823 バイト（移行時点の値。`50ce3d0` で中継ヘッダの転送が
   入り、現在は 253,463 バイト / `4e6790ed…` —— bundle の数は commit に紐づく）
-- `scripts/smoke-worker.cljs`: ビルド済み bundle を import して **21 項目** PASS
+- `scripts/smoke-worker.cljk`: ビルド済み bundle を import して **21 項目** PASS
 - **workerd（`wrangler dev --local`）で全 route を実測**。Node で import する
   smoke より強い証拠である（実際の Workers ランタイム）。
 

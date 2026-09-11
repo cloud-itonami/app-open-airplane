@@ -23,7 +23,7 @@ Cloudflare のアカウントは要らない（deploy だけが要る。§6）�
 git clone git@github.com:cloud-itonami/app-open-airplane.git
 cd app-open-airplane
 REPO=$PWD
-npx --yes nbb scripts/verify-docs-claims.cljs .
+npx --yes nbb scripts/verify-docs-claims.cljk .
 ```
 
 末尾が `OK` なら README の数値・存在・不在は tree と一致している（**25 claim**）。
@@ -166,14 +166,14 @@ shadow の `:esm` 出力は同一ソースでも incremental rebuild だとバ�
 無ければ shadow は存在しない var を **WARNING** にして **exit 0** し、bundle を
 書いてしまう ——「ビルドが通った」は検査ではない（**落ちようがない**）。
 
-この repo で実際に落として確かめた。`src/open_airplane/worker.cljs:115` の
+この repo で実際に落として確かめた。`src/open_airplane/worker.cljk:115` の
 `route/dispatch` を存在しない `route/dispatch-nonexistent` に改名する。
 **両方の行を cold cache で測る** —— `:esm` 出力は同一ソースでも incremental
 rebuild だとバイトが変わるので、cache を消さずに測った sha は他の行と比較でき
 ないし、誰も再現できない:
 
 ```bash
-sed -i '' '115s/route\/dispatch /route\/dispatch-nonexistent /' src/open_airplane/worker.cljs
+sed -i '' '115s/route\/dispatch /route\/dispatch-nonexistent /' src/open_airplane/worker.cljk
 rm -rf .shadow-cljs dist    # ← 行ごとに必ず消す
 node ~/github/com-junkawasaki/scripts/resource-guard.mjs run build -- \
   npx --yes shadow-cljs release worker > /tmp/b.log 2>&1; echo "exit=$?"
@@ -216,7 +216,7 @@ shasum -a 256 dist/worker.js
 ここが deploy されるものに触る唯一の検査である。
 
 ```bash
-cd "$REPO" && npx --yes nbb scripts/smoke-worker.cljs dist/worker.js
+cd "$REPO" && npx --yes nbb scripts/smoke-worker.cljk dist/worker.js
 ```
 
 実際の出力（21 項目、抜粋）:
