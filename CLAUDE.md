@@ -69,8 +69,8 @@ PATH に無い `e7m`）。踏める手順の正本は `docs/operator-quickstart.
 
 ```bash
 node ~/github/com-junkawasaki/scripts/resource-guard.mjs run build -- \
-  npx shadow-cljs release worker      # dist/worker.js を作る
-npx nbb scripts/smoke-worker.cljk dist/worker.js
+  amu compile --target wasm32-browser worker      # dist/worker.js を作る
+kbb --backend sci scripts/smoke-worker.cljk dist/worker.js
 cd worker && npx wrangler dev --local --port 8811
 ```
 

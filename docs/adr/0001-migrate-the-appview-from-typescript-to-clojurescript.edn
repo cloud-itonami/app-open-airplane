@@ -155,7 +155,7 @@ CSS は `shadow.resource/inline` で bundle に焼く（外部リクエストゼ
 - `open-airplane.route-test`: **6 tests / 35 assertions、0 failures**（nbb、ビルド不要）
 - ページ描画 → design-quality **100.00**、gate PASS（10 軸 / 12 軸とも）
 - `scripts/verify-docs-claims.cljk`: **25 claim すべて PASS**、exit 0
-- `shadow-cljs release worker`: 55 files / 12 compiled / **0 warnings**、
+- `amu compile --target wasm32-browser worker`: 55 files / 12 compiled / **0 warnings**、
   `dist/worker.js` 245,823 バイト（移行時点の値。`50ce3d0` で中継ヘッダの転送が
   入り、現在は 253,463 バイト / `4e6790ed…` —— bundle の数は commit に紐づく）
 - `scripts/smoke-worker.cljk`: ビルド済み bundle を import して **21 項目** PASS
