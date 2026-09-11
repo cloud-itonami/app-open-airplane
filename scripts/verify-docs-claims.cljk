@@ -28,7 +28,7 @@
 ;;      cloud-itonami/app-ongakuka greps shadow-cljs.edn and does not check the
 ;;      placement at all.)
 ;;
-;; Usage:  nbb scripts/verify-docs-claims.cljs [<dir>]     (<dir> FIRST, default ".")
+;; Usage:  nbb scripts/verify-docs-claims.cljk [<dir>]     (<dir> FIRST, default ".")
 ;; Exit:   0 every claim holds · 1 a claim is false · 2 could not answer
 
 (require '["node:fs" :as fs]
@@ -222,8 +222,8 @@
     ;; substring: a check that forbids "routeCount" anywhere is tripped by the
     ;; docstring that explains the old defect. A check a comment can fail is a
     ;; check about prose.
-    (let [v (slurp* "src/open_airplane/view.cljc")
-          w (slurp* "src/open_airplane/worker.cljs")]
+    (let [v (slurp* "src/open_airplane/view.cljk")
+          w (slurp* "src/open_airplane/worker.cljk")]
       (if (or (nil? v) (nil? w))
         (undet! "view.cljc or worker.cljs unreadable")
         (check! :page-renders-route-table true
@@ -249,11 +249,11 @@
     ;; disagree with the runner (30 vs 35 when measured 2026-08-19). Claiming it
     ;; from a grep would be a check that is confidently wrong, which is worse
     ;; than one that is absent -- the suite itself is what checks that number.
-    (let [t (slurp* "test/open_airplane/route_test.cljc")
+    (let [t (slurp* "test/open_airplane/route_test.cljk")
           docs ["README.md"
                 "docs/operator-quickstart.md"
                 "docs/adr/0001-migrate-the-appview-from-typescript-to-clojurescript.edn"]
-          unreadable (vec (remove #(some? (slurp* %)) (cons "test/open_airplane/route_test.cljc" docs)))]
+          unreadable (vec (remove #(some? (slurp* %)) (cons "test/open_airplane/route_test.cljk" docs)))]
       (if (seq unreadable)
         (undet! (str "unreadable: " (str/join ", " unreadable)))
         (let [n (count (re-seq #"(?m)^\(deftest\s" t))]

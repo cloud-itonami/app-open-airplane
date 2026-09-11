@@ -5,7 +5,7 @@
 deploy されるのは XRPC 要求を MCP router へ中継する Worker 1 本と、その配備設定である。
 
 **2026-08-19 に appview を TypeScript/Svelte から ClojureScript へ移行した**
-（`docs/adr/0001`）。数字はすべて `scripts/verify-docs-claims.cljs` が tree から
+（`docs/adr/0001`）。数字はすべて `scripts/verify-docs-claims.cljk` が tree から
 再計算して検査する（25 claim）。
 
 | | |
@@ -25,9 +25,9 @@ deploy されるのは XRPC 要求を MCP router へ中継する Worker 1 本と
 ## deploy されるものは、いま読んでいるソースである
 
 ```
-src/open_airplane/route.cljc    判断（どの handler が答えるか）  ← 純 .cljc、テスト対象
-src/open_airplane/view.cljc     ページ（jp-go-dds の hiccup）    ← 純 .cljc、テスト対象
-src/open_airplane/worker.cljs   Request/Response に触る唯一の層
+src/open_airplane/route.cljk    判断（どの handler が答えるか）  ← 純 .cljc、テスト対象
+src/open_airplane/view.cljk     ページ（jp-go-dds の hiccup）    ← 純 .cljc、テスト対象
+src/open_airplane/worker.cljk   Request/Response に触る唯一の層
         ↓ shadow-cljs :target :esm
 dist/worker.js                  ← worker/wrangler.jsonc の "main" が指すもの
 ```
@@ -37,7 +37,7 @@ dist/worker.js                  ← worker/wrangler.jsonc の "main" が指す�
 そして読み手が開く `worker/src/app.ts`（23,512 バイト、8 NSID の完全実装に読める）は
 **どの bundle にも入っていなかった**。いまは `main` が指す bundle が上のソースから
 コンパイルされたものなので、その形は構造的に起こり得ない。
-`scripts/verify-docs-claims.cljs` が **shadow の出力先と wrangler の `main` と
+`scripts/verify-docs-claims.cljk` が **shadow の出力先と wrangler の `main` と
 export の ns 名の 3 つが噛み合っていること**を検査し、噛み合わなくなれば落ちる。
 
 判断を `.cljc` に置いてあるのは、ブラウザもビルドも無しにテストするためであり、
@@ -87,7 +87,7 @@ deploy された面が答えているかを外から確かめる経路が 1 本�
 | 面 | ファイル |
 |---|---|
 | 判断・描画・edge | `src/open_airplane/{route.cljc, view.cljc, worker.cljs}` |
-| テスト | `test/open_airplane/route_test.cljc`（6 tests / 35 assertions） |
+| テスト | `test/open_airplane/route_test.cljk`（6 tests / 35 assertions） |
 | ビルド | `deps.edn` / `shadow-cljs.edn` / `.gitignore` |
 | Worker 設定 | `worker/wrangler.jsonc` |
 | actor 記述子 | `worker/kotodama.jsonld` |
@@ -244,7 +244,7 @@ M（`.gitignore` が無い）**。**F（`worker/` に型検査経路が無い）
 ## 検証
 
 ```bash
-npx nbb scripts/verify-docs-claims.cljs .          # <dir> は先頭に置く
+npx nbb scripts/verify-docs-claims.cljk .          # <dir> は先頭に置く
 ```
 
 exit 0 = 全一致 / 1 = 食い違い / **2 = 判定できなかった**（0 と区別する）。
