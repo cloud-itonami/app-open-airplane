@@ -1,5 +1,5 @@
 (ns open-airplane.route-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [kotoba.lang.text :as str]
             [open-airplane.route :as route]
             [open-airplane.view :as view]))
