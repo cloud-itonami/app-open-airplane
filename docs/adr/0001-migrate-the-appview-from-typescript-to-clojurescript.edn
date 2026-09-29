@@ -49,7 +49,7 @@
             ↓ shadow-cljs :target :esm
     dist/worker.js                  worker/wrangler.jsonc の main が指すもの
 
-正本言語の選択は判断ではなく規約である —— superproject CLAUDE.md の runtime
+正本言語の選択は判断ではなく規約である —— superproject AGENTS.md の runtime
 順序は kotoba wasm > clojurewasm > ClojureScript > nbb で、TypeScript はそこに
 無い。候補の 3 実装はどれも TypeScript なので、どれを選んでも正本には着地
 しない。先例は同じ org の cloud-itonami/app-ongakuka と
@@ -238,7 +238,7 @@ bundle の sha256 が mutation 前の値に戻ることを確認した。** 復�
   `kotoba/` の 6 本は別勘定）。この 2 つは検証器の claim なので、TS が戻れば
   落ちる —— 撤去した 10 パスに戻る場合と別名で入る場合を別々の claim が捕まえる。
 - 継承した 14 ファイル（25,388 バイト）は 1 バイトも変わっていない（sha256 を
-  検証器に固定）。`worker/wrangler.jsonc` と `CLAUDE.md` だけは**意図的に変更**
+  検証器に固定）。`worker/wrangler.jsonc` と `AGENTS.md` だけは**意図的に変更**
   したので custody 集合から外し、内容で検査する。
 - **ホストは相変わらず NXDOMAIN である**（`open-airplane.etzhayyim.com` /
   `mcp.etzhayyim.com` とも、2026-08-19 に `@1.1.1.1` で再測定）。移行はそれを

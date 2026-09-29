@@ -94,7 +94,7 @@ deploy された面が答えているかを外から確かめる経路が 1 本�
 | 検査 | `scripts/{smoke-worker.cljs, verify-docs-claims.cljs}` |
 | モデル（継承） | `bpmn/`(2) `dmn/`(1) `dodaf/`(6) `forms/`(2) |
 | **別実装（継承・移行対象外）** | **`kotoba/`(8)** —— 下記 |
-| 設計 | `CLAUDE.md` |
+| 設計 | `AGENTS.md` |
 | 由来・識別 | `README.edn` / `migration.edn` |
 | 文書 | `README.md` / `docs/operator-quickstart.md` / `docs/adr/0001-*.edn` |
 
@@ -120,7 +120,7 @@ AT レコードとして持つ。実測: `grep -rn kotoba worker/` は **0 件**
 増えるための口実にならないようにするため。移行するなら、それは AT PDS SDK の cljs
 face を要する別の決定である。
 
-なお `kotoba/` の NSID 集合は `CLAUDE.md` とも移行前の `app.ts` とも一致しない
+なお `kotoba/` の NSID 集合は `AGENTS.md` とも移行前の `app.ts` とも一致しない
 （`reportIncident` / `listIncidents` が無く、`getAirport` 等が在る）。これは移行前から
 そうで、移行は直していない。
 
@@ -218,7 +218,7 @@ SvelteKit の `{"message":"Internal Error"}` **500** に潰れており、どの
 - 継承した **14 ファイル（25,388 バイト）**は**いまも 1 バイトも変わっていない**
   （sha256 を検証器に固定）—— `README.edn` `migration.edn` `worker/kotodama.jsonld`
   `bpmn/`(2) `dmn/`(1) `dodaf/`(6) `forms/`(2)
-- `worker/wrangler.jsonc` と `CLAUDE.md` は**意図的に変更**した。custody の byte 一致
+- `worker/wrangler.jsonc` と `AGENTS.md` は**意図的に変更**した。custody の byte 一致
   集合から外し、**内容で検査する**（意図的な変更と勝手な変更を区別するため）
 - TypeScript/Svelte の 10 ファイルは**移行で撤去**した。検証器はその 10 パスを
   名指しで「不在であること」を検査する —— byte 合計は「TS が消えた」と言えない
